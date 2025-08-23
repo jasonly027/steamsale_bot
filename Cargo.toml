@@ -1,0 +1,11 @@
+[package]
+name = "steamsale_bot"
+version = "0.1.0"
+edition = "2024"
+description = "A Discord bot to track Steam sales and discounts"
+repository = "https://github.com/jasonly027/steamsale_bot"
+
+[dependencies]
+mongodb = "3.2.5"
+poise = "0.6.1"
+tokio = { version = "1.47.1", features = ["full"] }
