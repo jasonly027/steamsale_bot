@@ -6,6 +6,11 @@ description = "A Discord bot to track Steam sales and discounts"
 repository = "https://github.com/jasonly027/steamsale_bot"
 
 [dependencies]
+anyhow = "1.0.99"
+dotenvy = "0.15.7"
 mongodb = "3.2.5"
 poise = "0.6.1"
+thiserror = "2.0.16"
 tokio = { version = "1.47.1", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = {version = "0.3.19", features = ["env-filter"]}
