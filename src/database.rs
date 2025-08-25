@@ -7,9 +7,9 @@ use tracing::info;
 use crate::{Result, models};
 
 const DATABASE_NAME: &str = "RUST_DEV";
-const APPS_COLL: &str = "apps";
-const DISCORD_COLL: &str = "discord";
-const JUNCTION_COLL: &str = "junction";
+pub const APPS_COLL: &str = "apps";
+pub const DISCORD_COLL: &str = "discord";
+pub const JUNCTION_COLL: &str = "junction";
 
 #[derive(Debug, Clone)]
 pub struct Database {

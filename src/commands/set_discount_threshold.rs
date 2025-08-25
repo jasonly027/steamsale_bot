@@ -11,6 +11,7 @@ enum SetThresholdResult {
 }
 
 #[poise::command(slash_command, user_cooldown = 3)]
+#[tracing::instrument(skip(ctx))]
 pub async fn set_discount_threshold(
     ctx: framework::Context<'_>,
     #[min = 1]
