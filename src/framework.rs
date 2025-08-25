@@ -65,7 +65,8 @@ async fn register_commands(
 async fn create_data() -> Result<Data> {
     info!("Connecting to database");
     let uri: String = util::env_var("MONGODB_URI")?;
-    let db = database::Database::new(&uri).await?;
+    let name: String = util::env_var("MONGODB_DBNAME")?;
+    let db = database::Database::new(&uri, name).await?;
 
     let repo = repos::Repo::new(Arc::new(db));
     Ok(Data { repo })
