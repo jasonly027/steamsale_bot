@@ -6,6 +6,7 @@ mod framework;
 mod models;
 mod repos;
 mod util;
+mod config;
 
 type StdResult<T, E> = std::result::Result<T, E>;
 type Result<T> = StdResult<T, Error>;

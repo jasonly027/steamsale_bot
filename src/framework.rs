@@ -20,7 +20,12 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
             })
         })
         .options(poise::FrameworkOptions {
-            commands: vec![commands::test(), commands::help(), commands::bind()],
+            commands: vec![
+                commands::test(),
+                commands::help(),
+                commands::bind(),
+                commands::set_discount_threshold(),
+            ],
             command_check: Some(|ctx| Box::pin(command_check(ctx))),
             on_error: |err| Box::pin(on_error(err)),
             ..Default::default()

@@ -2,6 +2,7 @@ use mongodb::{
     bson,
     options::{ClientOptions, ServerApi, ServerApiVersion},
 };
+use tracing::info;
 
 use crate::{Result, models};
 
@@ -22,7 +23,9 @@ impl Database {
         let client = mongodb::Client::with_options(options)?;
 
         let db = client.database(DATABASE_NAME);
+        info!("Pinging database...");
         db.run_command(bson::doc! {"ping": 1}).await?;
+        info!("Pong received from database");
 
         Ok(Self { client })
     }
@@ -37,5 +40,9 @@ impl Database {
 
     pub fn discord(&self) -> mongodb::Collection<models::Discord> {
         self.db().collection(DISCORD_COLL)
+    }
+
+    pub fn junction(&self) -> mongodb::Collection<models::Junction> {
+        self.db().collection(JUNCTION_COLL)
     }
 }

@@ -1,5 +1,6 @@
 use anyhow::Context;
 use poise::serenity_prelude as serenity;
+use tracing::{error, warn};
 
 use crate::{Result, StdResult};
 
@@ -13,7 +14,7 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
     fn twarn(self) -> StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
-            tracing::warn!(
+            warn!(
                 %err,
                 "Error at {}:{}:{}",
                 loc.file().replace("\\", "/"),
@@ -27,7 +28,7 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
     fn terror(self) -> StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
-            tracing::error!(
+            error!(
                 %err,
                 "Error at {}:{}:{}",
                 loc.file().replace("\\", "/"),
@@ -88,5 +89,16 @@ impl ContextExt for crate::framework::Context<'_> {
         let permissions = guild.user_permissions_in(channel, &bot_member);
 
         Ok(permissions)
+    }
+}
+
+pub trait ToReply {
+    fn to_reply(self) -> poise::CreateReply;
+}
+
+impl ToReply for serenity::CreateEmbed {
+    /// Creates a default reply that only contains this embed.
+    fn to_reply(self) -> poise::CreateReply {
+        poise::CreateReply::default().embed(self)
     }
 }

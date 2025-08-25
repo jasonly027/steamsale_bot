@@ -6,3 +6,6 @@ pub use help::*;
 
 mod bind;
 pub use bind::*;
+
+mod set_discount_threshold;
+pub use set_discount_threshold::*;
