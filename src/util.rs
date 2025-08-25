@@ -1,32 +1,44 @@
-use thiserror::Error;
-use tracing::warn;
+use anyhow::Context;
+use poise::serenity_prelude as serenity;
 
-pub trait ResLog<T> {
-    #[track_caller]
-    fn warn(self) -> Option<T>;
+use crate::{Result, StdResult};
+
+pub trait ResLog<T, E> {
+    fn warn(self) -> StdResult<T, E>;
+    fn error(self) -> StdResult<T, E>;
 }
 
-impl<T, E: std::fmt::Display> ResLog<T> for Result<T, E> {
+impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
     #[track_caller]
-    fn warn(self) -> Option<T> {
-        match self {
-            Ok(x) => Some(x),
-            Err(err) => {
-                let loc = std::panic::Location::caller();
-                warn!(
-                    %err,
-                    "Unexpected error at {}:{}:{}",
-                    loc.file().replace("\\", "/"),
-                    loc.line(),
-                    loc.column()
-                );
-                None
-            }
-        }
+    fn warn(self) -> StdResult<T, E> {
+        self.inspect_err(|err| {
+            let loc = std::panic::Location::caller();
+            tracing::warn!(
+                %err,
+                "Error at {}:{}:{}",
+                loc.file().replace("\\", "/"),
+                loc.line(),
+                loc.column()
+            );
+        })
+    }
+
+    #[track_caller]
+    fn error(self) -> StdResult<T, E> {
+        self.inspect_err(|err| {
+            let loc = std::panic::Location::caller();
+            tracing::error!(
+                %err,
+                "Error at {}:{}:{}",
+                loc.file().replace("\\", "/"),
+                loc.line(),
+                loc.column()
+            );
+        })
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum EnvVarError {
     #[error("Invalid/Missing {key} or {key}_FILE")]
     InvalidOrMissingKey { key: String },
@@ -34,7 +46,7 @@ pub enum EnvVarError {
     InvalidValue { key: String, err: String },
 }
 
-pub fn env_var<T: std::str::FromStr>(key: &str) -> Result<T, EnvVarError>
+pub fn env_var<T: std::str::FromStr>(key: &str) -> StdResult<T, EnvVarError>
 where
     T::Err: std::fmt::Display,
 {
@@ -52,5 +64,29 @@ where
                 key: format!("{key}_FILE"),
                 err: err.to_string(),
             }),
+    }
+}
+
+pub trait ContextExt {
+    async fn permissions_in(
+        &self,
+        channel: &serenity::GuildChannel,
+    ) -> Result<serenity::Permissions>;
+}
+
+impl ContextExt for crate::framework::Context<'_> {
+    async fn permissions_in(
+        &self,
+        channel: &serenity::GuildChannel,
+    ) -> Result<serenity::Permissions> {
+        let guild = self
+            .partial_guild()
+            .await
+            .with_context(|| "Getting partial guild")?;
+        let bot_id = self.cache().current_user().id;
+        let bot_member = guild.member(&self, bot_id).await?;
+        let permissions = guild.user_permissions_in(channel, &bot_member);
+
+        Ok(permissions)
     }
 }

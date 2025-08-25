@@ -1,30 +1,28 @@
-use anyhow::Ok;
-use poise::{FrameworkOptions, serenity_prelude as serenity};
-use tracing::info;
+use std::sync::Arc;
 
-use crate::{Error, commands, database, util};
+use poise::serenity_prelude as serenity;
+use tracing::{error, info};
+
+use crate::{Error, Result, commands, database, repos, util};
 
 pub struct Data {
-    db: database::Database,
+    pub repo: repos::Repo,
 }
 
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
-pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<(), Error> {
+pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
     let framework = poise::Framework::<Data, Error>::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
                 register_commands(ctx, &framework.options().commands, dev_guild).await?;
-
-                info!("Connecting to database");
-                let uri: String = util::env_var("MONGODB_URI")?;
-                Ok(Data {
-                    db: database::Database::new(&uri).await?,
-                })
+                create_data().await
             })
         })
-        .options(FrameworkOptions {
-            commands: vec![commands::test()],
+        .options(poise::FrameworkOptions {
+            commands: vec![commands::test(), commands::help(), commands::bind()],
+            command_check: Some(|ctx| Box::pin(command_check(ctx))),
+            on_error: |err| Box::pin(on_error(err)),
             ..Default::default()
         })
         .build();
@@ -43,7 +41,7 @@ async fn register_commands(
     ctx: &serenity::Context,
     commands: &[poise::Command<Data, Error>],
     dev_guild: Option<u64>,
-) -> Result<(), Error> {
+) -> Result<()> {
     match dev_guild {
         Some(guild_id) => {
             info!("Registering commands in development guild {}", guild_id);
@@ -58,3 +56,32 @@ async fn register_commands(
 
     Ok(())
 }
+
+async fn create_data() -> Result<Data> {
+    info!("Connecting to database");
+    let uri: String = util::env_var("MONGODB_URI")?;
+    let db = database::Database::new(&uri).await?;
+
+    let repo = repos::Repo::new(Arc::new(db));
+    Ok(Data { repo })
+}
+
+async fn command_check(ctx: Context<'_>) -> Result<bool> {
+    if ctx.guild_id().is_some() {
+        return Ok(true);
+    }
+    ctx.say("Commands must be used in a server").await?;
+    Ok(false)
+}
+
+pub async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
+    error!(%err, "Unexpected error");
+
+    if let Some(ctx) = err.ctx() {
+        ctx.say("An unexpected error has occured...")
+            .await
+            .inspect_err(|err| error!(?err, "Failed to send unexpected error message"))
+            .ok();
+    }
+}
+
