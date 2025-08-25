@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
             "info,serenity=WARN",
         )?)
         .init();
-    dotenvy::dotenv().warn().ok();
+    dotenvy::dotenv().twarn().ok();
 
     let token: String = util::env_var("DISCORD_TOKEN")?;
     let dev_guild: Option<u64> = match util::env_var("DISCORD_DEVGUILDID") {

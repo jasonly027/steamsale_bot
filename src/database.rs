@@ -35,7 +35,7 @@ impl Database {
         self.client.start_session().await
     }
 
-    pub fn junction(&self) -> mongodb::Collection<models::Junction> {
-        self.db().collection(JUNCTION_COLL)
+    pub fn discord(&self) -> mongodb::Collection<models::Discord> {
+        self.db().collection(DISCORD_COLL)
     }
 }

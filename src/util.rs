@@ -4,13 +4,13 @@ use poise::serenity_prelude as serenity;
 use crate::{Result, StdResult};
 
 pub trait ResLog<T, E> {
-    fn warn(self) -> StdResult<T, E>;
-    fn error(self) -> StdResult<T, E>;
+    fn twarn(self) -> StdResult<T, E>;
+    fn terror(self) -> StdResult<T, E>;
 }
 
 impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
     #[track_caller]
-    fn warn(self) -> StdResult<T, E> {
+    fn twarn(self) -> StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
             tracing::warn!(
@@ -24,7 +24,7 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
     }
 
     #[track_caller]
-    fn error(self) -> StdResult<T, E> {
+    fn terror(self) -> StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
             tracing::error!(

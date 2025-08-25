@@ -29,7 +29,7 @@ pub async fn bind(
 
     ctx.data()
         .repo
-        .junction
+        .discord
         .update_channel_id(channel.guild_id.into(), channel.id.into(), None)
         .await?;
     ctx.say(format!("Bounded to <#{}>", channel.id)).await?;
@@ -40,7 +40,7 @@ pub async fn bind(
 async fn on_error(err: poise::FrameworkError<'_, framework::Data, Error>) {
     match err {
         poise::FrameworkError::ArgumentParse { ctx, .. } => {
-            ctx.say(MISSING_PERMISSIONS).await.error().ok();
+            ctx.say(MISSING_PERMISSIONS).await.terror().ok();
         }
         _ => framework::on_error(err).await,
     }

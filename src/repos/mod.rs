@@ -1,18 +1,20 @@
+use std::sync::Arc;
+
 use crate::database;
 
-mod junction_repo;
+mod discord_repo;
 
 #[derive(Debug, Clone)]
 pub struct Repo {
-    db: std::sync::Arc<database::Database>,
-    pub junction: junction_repo::JunctionRepo,
+    db: Arc<database::Database>,
+    pub discord: discord_repo::DiscordRepo,
 }
 
 impl Repo {
-    pub fn new(db: std::sync::Arc<database::Database>) -> Self {
-        let junction = junction_repo::JunctionRepo::new(&db);
+    pub fn new(db: Arc<database::Database>) -> Self {
+        let discord = discord_repo::DiscordRepo::new(&db);
 
-        Self { db, junction }
+        Self { db, discord }
     }
 
     pub async fn start_session(&self) -> mongodb::error::Result<mongodb::ClientSession> {
