@@ -90,4 +90,3 @@ pub async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
             .ok();
     }
 }
-

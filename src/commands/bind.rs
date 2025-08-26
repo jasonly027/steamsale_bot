@@ -30,8 +30,9 @@ pub async fn bind(
     ctx.data()
         .repo
         .discord
-        .update_channel_id(channel.guild_id.into(), channel.id.into(), None)
-        .await?;
+        .set_channel_id(channel.guild_id.into(), channel.id.into())
+        .await
+        .terror()?;
     ctx.say(format!("Bounded to <#{}>", channel.id)).await?;
 
     Ok(())

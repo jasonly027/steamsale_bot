@@ -2,7 +2,10 @@ use anyhow::Context;
 
 use poise::serenity_prelude as serenity;
 
-use crate::{config, framework, repos, util::ToReply, Result};
+use crate::{
+    Result, config, framework, repos,
+    util::{ResLog, ToReply},
+};
 
 enum SetThresholdResult {
     Success,
@@ -95,7 +98,7 @@ async fn set_guild_threshold(
     threshold: i32,
 ) -> Result<SetThresholdResult> {
     let d_repo = &repo.discord;
-    d_repo.set_threshold(guild_id, threshold, None).await?;
+    d_repo.set_threshold(guild_id, threshold).await.terror()?;
 
     Ok(SetThresholdResult::Success)
 }

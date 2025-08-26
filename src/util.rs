@@ -16,10 +16,8 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
             let loc = std::panic::Location::caller();
             warn!(
                 %err,
-                "Error at {}:{}:{}",
-                loc.file().replace("\\", "/"),
-                loc.line(),
-                loc.column()
+                "Error at {}",
+                loc_as_str(loc)
             );
         })
     }
@@ -30,13 +28,20 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
             let loc = std::panic::Location::caller();
             error!(
                 %err,
-                "Error at {}:{}:{}",
-                loc.file().replace("\\", "/"),
-                loc.line(),
-                loc.column()
+                "Error at {}",
+                loc_as_str(loc)
             );
         })
     }
+}
+
+fn loc_as_str(loc: &std::panic::Location<'_>) -> String {
+    format!(
+        "{}:{}:{}",
+        loc.file().replace("\\", "/"),
+        loc.line(),
+        loc.column()
+    )
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -92,6 +97,7 @@ impl ContextExt for crate::framework::Context<'_> {
     }
 }
 
+/// Provides a convenience method for creating a reply out of self.
 pub trait ToReply {
     fn to_reply(self) -> poise::CreateReply;
 }
@@ -100,5 +106,22 @@ impl ToReply for serenity::CreateEmbed {
     /// Creates a default reply that only contains this embed.
     fn to_reply(self) -> poise::CreateReply {
         poise::CreateReply::default().embed(self)
+    }
+}
+
+#[cfg(test)]
+/// Provides a convenience method for collecting MongoDB documents in a collection.
+pub trait CollectionCollectAll<T, E> {
+    /// Collects all documents in the collection.
+    async fn collect(&self) -> StdResult<Vec<T>, E>;
+}
+
+#[cfg(test)]
+impl<T: Send + Sync + serde::de::DeserializeOwned> CollectionCollectAll<T, mongodb::error::Error>
+    for mongodb::Collection<T>
+{
+    async fn collect(&self) -> StdResult<Vec<T>, mongodb::error::Error> {
+        use poise::serenity_prelude::futures::TryStreamExt;
+        self.find(mongodb::bson::doc! {}).await?.try_collect().await
     }
 }

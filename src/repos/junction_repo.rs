@@ -5,7 +5,7 @@ use poise::serenity_prelude::futures::{StreamExt, TryStreamExt};
 
 use crate::{Result, StdResult, database, models, util::ResLog};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct AppListingAggregate {
     #[serde(flatten)]
     junction: models::Junction,
@@ -45,7 +45,7 @@ impl JunctionRepo {
     }
 
     #[must_use]
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub async fn set_thresholds(
         &self,
         guild_id: i64,
@@ -87,7 +87,7 @@ impl JunctionRepo {
         failed_apps
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(skip(self))]
     pub async fn get_app_listings(&self, guild_id: i64) -> Result<Vec<models::AppListing>> {
         let pipeline = vec![
             bson::doc! { "$match": { "server_id": guild_id } },

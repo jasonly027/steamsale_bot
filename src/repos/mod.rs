@@ -5,7 +5,7 @@ use crate::database;
 mod discord_repo;
 mod junction_repo;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Repo {
     db: Arc<database::Database>,
     pub discord: discord_repo::DiscordRepo,
