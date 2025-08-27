@@ -9,7 +9,7 @@ pub struct Discord {
     pub server_id: i64,
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct Junction {
     #[serde(rename = "_id")]
     pub id: bson::oid::ObjectId,
@@ -20,7 +20,7 @@ pub struct Junction {
     pub sale_threshold: Option<i32>,
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub struct App {
     #[serde(rename = "_id")]
     pub id: bson::oid::ObjectId,
@@ -28,7 +28,7 @@ pub struct App {
     pub app_name: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AppListing {
     pub app_id: i32,
     pub app_name: String,

@@ -59,6 +59,10 @@ impl Database {
         self.db().collection(JUNCTION_COLL)
     }
 
+    pub fn apps(&self) -> mongodb::Collection<models::App> {
+        self.db().collection(APPS_COLL)
+    }
+
     fn db(&self) -> mongodb::Database {
         self.client.database(&self.name)
     }
