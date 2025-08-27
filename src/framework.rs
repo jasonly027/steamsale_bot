@@ -27,6 +27,7 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
                 commands::set_discount_threshold(),
                 commands::list_apps(),
                 commands::clear_apps(),
+                commands::remove_apps(),
             ],
             command_check: Some(|ctx| Box::pin(command_check(ctx))),
             on_error: |err| Box::pin(on_error(err)),

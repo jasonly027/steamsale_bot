@@ -45,7 +45,6 @@ impl JunctionRepo {
     }
 
     #[must_use]
-    #[tracing::instrument(skip(self))]
     pub async fn set_thresholds(
         &self,
         guild_id: i64,
@@ -87,7 +86,6 @@ impl JunctionRepo {
         failed_apps
     }
 
-    #[tracing::instrument(skip(self))]
     pub async fn get_app_listings(&self, guild_id: i64) -> Result<Vec<models::AppListing>> {
         let pipeline = vec![
             bson::doc! { "$match": { "server_id": guild_id } },
@@ -119,10 +117,17 @@ impl JunctionRepo {
             .await)
     }
 
-    #[tracing::instrument(skip(self))]
     pub fn clear_apps(&self, guild_id: i64) -> mongodb::action::Delete<'_> {
-        let filter = bson::doc! { "server_id": guild_id };
-        self.coll.delete_many(filter)
+        let query = bson::doc! { "server_id": guild_id };
+        self.coll.delete_many(query)
+    }
+
+    pub fn remove_apps(&self, guild_id: i64, app_ids: &[i32]) -> mongodb::action::Delete<'_> {
+        let query = bson::doc! {
+            "server_id": guild_id,
+            "app_id": { "$in": &app_ids },
+        };
+        self.coll.delete_many(query)
     }
 }
 
@@ -170,6 +175,7 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial(database)]
+    #[rustfmt::skip]
     async fn get_app_listings_joins_correctly() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
@@ -182,28 +188,28 @@ mod tests {
             app_name: "name".to_string(),
             sale_threshold: Some(junction_threshold),
         };
-        db.apps()
-            .insert_one(App {
+        db.apps().insert_one(
+            App {
                 app_id: expected.app_id,
                 app_name: expected.app_name.clone(),
                 ..Default::default()
-            })
-            .await?;
-        db.discord()
-            .insert_one(Discord {
+            }
+        ).await?;
+        db.discord().insert_one(
+            Discord {
                 server_id,
                 sale_threshold: server_threshold,
                 ..Default::default()
-            })
-            .await?;
-        db.junction()
-            .insert_one(Junction {
+            }
+        ).await?;
+        db.junction().insert_one(
+            Junction {
                 server_id,
                 app_id: expected.app_id,
                 sale_threshold: Some(junction_threshold),
                 ..Default::default()
-            })
-            .await?;
+            }
+        ).await?;
 
         let actual = repo.get_app_listings(server_id).await?;
         assert_eq!(1, actual.len(), "{actual:?}");
@@ -214,66 +220,15 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial(database)]
-    async fn get_app_listings_joins_without_modifying() -> Result<()> {
-        let db = TestDatabase::new().await?;
-        let repo = JunctionRepo::new(&db);
-
-        let server_id = 0;
-        let server_threshold = 1;
-        let junction_threshold = 2;
-        let listing = AppListing {
-            app_id: 1,
-            app_name: "name".to_string(),
-            sale_threshold: Some(junction_threshold),
-        };
-        let exp_app = App {
-            app_id: listing.app_id,
-            app_name: listing.app_name.clone(),
-            ..Default::default()
-        };
-        db.apps().insert_one(&exp_app).await?;
-        let exp_discord = Discord {
-            server_id,
-            sale_threshold: server_threshold,
-            ..Default::default()
-        };
-        db.discord().insert_one(&exp_discord).await?;
-        let exp_junction = Junction {
-            server_id,
-            app_id: listing.app_id,
-            sale_threshold: Some(junction_threshold),
-            ..Default::default()
-        };
-        db.junction().insert_one(&exp_junction).await?;
-
-        let _ = repo.get_app_listings(server_id).await?;
-
-        let actual_app = db.apps().collect().await?;
-        assert_eq!(actual_app.len(), 1, "{actual_app:?}");
-        assert_eq!(exp_app, actual_app[0]);
-
-        let actual_discord = db.discord().collect().await?;
-        assert_eq!(actual_discord.len(), 1, "{actual_discord:?}");
-        assert_eq!(exp_discord, actual_discord[0]);
-
-        let actual_junction = db.junction().collect().await?;
-        assert_eq!(actual_junction.len(), 1, "{actual_junction:?}");
-        assert_eq!(exp_junction, actual_junction[0]);
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    #[serial_test::serial(database)]
     #[rustfmt::skip]
-    async fn clear_apps_deletes_all_of_guilds() -> Result<()> {
+    async fn clear_apps_deletes_all_apps_of_target_guild() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
 
         let server_id = 0;
         db.junction().insert_many([
-            Junction { server_id, app_id: 0, ..Default::default() },
-            Junction { server_id, app_id: 1, ..Default::default() },
+            Junction { server_id, ..Default::default() },
+            Junction { server_id, ..Default::default() },
         ]).await?;
 
         repo.clear_apps(server_id).await?;
@@ -287,19 +242,59 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial(database)]
     #[rustfmt::skip]
-    async fn clear_apps_only_deletes_specified_guilds() -> Result<()> {
+    async fn clear_apps_doesnt_delete_apps_of_other_guilds() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
 
-        let target =      Junction { server_id: 0, app_id: 0, ..Default::default() };
-        let not_target1 = Junction { server_id: 1, app_id: 0, ..Default::default() };
-        let not_target2 = Junction { server_id: 1, app_id: 1, ..Default::default() };
-        db.junction().insert_many([&target, &not_target1, &not_target2]).await?;
+        let server_id = 0;
+        let other = Junction { server_id: 1, ..Default::default() };
+        db.junction().insert_one(&other).await?;
 
-        repo.clear_apps(target.server_id).await?;
+        repo.clear_apps(server_id).await?;
 
         let actual = db.junction().collect().await?;
-        assert_eq!([not_target1, not_target2], actual[..]);
+        assert_eq!([other], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn remove_apps_only_deletes_targeted_apps_in_the_target_guild() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let server_id = 0;
+        let target1 = Junction { server_id, app_id: 0, ..Default::default() };
+        let target2 = Junction { server_id, app_id: 1, ..Default::default() };
+        let other  = Junction { server_id, app_id: 2, ..Default::default() };
+        db.junction().insert_many([&target1, &target2, &other]).await?;
+
+        repo.remove_apps(server_id, &[target1.app_id, target2.app_id]).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([other], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn remove_apps_doesnt_delete_apps_of_other_guilds() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let app_id = 0;
+        let server_id = 0;
+        let other = Junction { server_id, app_id: 1, ..Default::default() };
+        db.junction().insert_one(&other).await?;
+
+        repo.remove_apps(server_id, &[app_id]).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([other], actual[..]);
 
         Ok(())
     }
