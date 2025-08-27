@@ -13,6 +13,7 @@ enum SetThresholdResult {
     InvalidAppIdString,
 }
 
+/// Sets the minimum discount required to trigger a sale alert.
 #[poise::command(slash_command, user_cooldown = 3)]
 #[tracing::instrument(skip(ctx))]
 pub async fn set_discount_threshold(
@@ -22,6 +23,7 @@ pub async fn set_discount_threshold(
     threshold: i32,
     #[max = 150]
     #[rename = "appids"]
+    #[description = "Use this threshold only for these specific appids"]
     app_ids: Option<String>,
 ) -> Result<()> {
     ctx.defer().await?;

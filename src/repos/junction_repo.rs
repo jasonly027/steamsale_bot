@@ -118,6 +118,12 @@ impl JunctionRepo {
             .collect()
             .await)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn clear_apps(&self, guild_id: i64) -> mongodb::action::Delete<'_> {
+        let filter = bson::doc! { "server_id": guild_id };
+        self.coll.delete_many(filter)
+    }
 }
 
 #[cfg(test)]
@@ -253,6 +259,47 @@ mod tests {
         let actual_junction = db.junction().collect().await?;
         assert_eq!(actual_junction.len(), 1, "{actual_junction:?}");
         assert_eq!(exp_junction, actual_junction[0]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn clear_apps_deletes_all_of_guilds() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let server_id = 0;
+        db.junction().insert_many([
+            Junction { server_id, app_id: 0, ..Default::default() },
+            Junction { server_id, app_id: 1, ..Default::default() },
+        ]).await?;
+
+        repo.clear_apps(server_id).await?;
+
+        let records = db.junction().collect().await?;
+        assert!(records.is_empty());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn clear_apps_only_deletes_specified_guilds() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let target =      Junction { server_id: 0, app_id: 0, ..Default::default() };
+        let not_target1 = Junction { server_id: 1, app_id: 0, ..Default::default() };
+        let not_target2 = Junction { server_id: 1, app_id: 1, ..Default::default() };
+        db.junction().insert_many([&target, &not_target1, &not_target2]).await?;
+
+        repo.clear_apps(target.server_id).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([not_target1, not_target2], actual[..]);
 
         Ok(())
     }

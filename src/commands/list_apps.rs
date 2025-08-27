@@ -74,6 +74,7 @@ impl<'a> Paginator<'a> {
     }
 }
 
+/// List apps being tracked and their discount thresholds.
 #[poise::command(slash_command, user_cooldown = 3)]
 #[tracing::instrument(skip(ctx))]
 pub async fn list_apps(ctx: framework::Context<'_>) -> Result<()> {

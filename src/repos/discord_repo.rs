@@ -96,4 +96,20 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn find_one_by_guild_id_gets_correct_guild() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = DiscordRepo::new(&db);
+
+        let expected = Discord { server_id: 0, ..Default::default() };
+        db.discord().insert_one(&expected).await?;
+
+        let actual = repo.find_one_by_guild_id(expected.server_id).await?;
+        assert_eq!(Some(expected), actual);
+
+        Ok(())
+    }
 }
