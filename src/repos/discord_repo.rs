@@ -41,9 +41,11 @@ impl DiscordRepo {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::*;
     use crate::{
-        Result, database::test::TestDatabase, models::Discord, util::CollectionCollectAll,
+        Result,
+        database::{CollectionCollectAll, TestDatabase},
+        models::Discord,
+        repos::discord_repo::DiscordRepo,
     };
 
     #[tokio::test]

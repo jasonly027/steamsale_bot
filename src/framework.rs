@@ -3,7 +3,7 @@ use std::sync::Arc;
 use poise::serenity_prelude as serenity;
 use tracing::{error, info};
 
-use crate::{Error, Result, commands, database, repos, util};
+use crate::{Error, Result, StdResult, commands, database, repos, util};
 
 pub struct Data {
     pub repo: repos::Repo,
@@ -49,7 +49,7 @@ async fn register_commands(
     ctx: &serenity::Context,
     commands: &[poise::Command<Data, Error>],
     dev_guild: Option<u64>,
-) -> Result<()> {
+) -> StdResult<(), serenity::Error> {
     match dev_guild {
         Some(guild_id) => {
             info!("Registering commands in development guild {}", guild_id);

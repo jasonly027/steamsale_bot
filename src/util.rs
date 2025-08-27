@@ -108,20 +108,3 @@ impl ToReply for serenity::CreateEmbed {
         poise::CreateReply::default().embed(self)
     }
 }
-
-#[cfg(test)]
-/// Provides a convenience method for collecting MongoDB documents in a collection.
-pub trait CollectionCollectAll<T, E> {
-    /// Collects all documents in the collection.
-    async fn collect(&self) -> StdResult<Vec<T>, E>;
-}
-
-#[cfg(test)]
-impl<T: Send + Sync + serde::de::DeserializeOwned> CollectionCollectAll<T, mongodb::error::Error>
-    for mongodb::Collection<T>
-{
-    async fn collect(&self) -> StdResult<Vec<T>, mongodb::error::Error> {
-        use poise::serenity_prelude::futures::TryStreamExt;
-        self.find(mongodb::bson::doc! {}).await?.try_collect().await
-    }
-}

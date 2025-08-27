@@ -4,7 +4,7 @@ use mongodb::{
 };
 use tracing::info;
 
-use crate::{Result, models};
+use crate::models;
 
 pub const APPS_COLL: &str = "apps";
 pub const DISCORD_COLL: &str = "discord";
@@ -20,7 +20,7 @@ pub struct Database {
 
 impl Database {
     /// Connects to a MongoDB database named `name`.
-    pub async fn new(uri: &str, name: impl Into<String>) -> Result<Self> {
+    pub async fn new(uri: &str, name: impl Into<String>) -> mongodb::error::Result<Self> {
         let mut options = {
             #[cfg(windows)]
             {
@@ -69,14 +69,34 @@ impl Database {
 }
 
 #[cfg(test)]
-pub mod test {
+pub use test::*;
+
+#[cfg(test)]
+mod test {
     use std::ops::Deref;
 
-    use super::*;
+    use mongodb::bson;
+
     use crate::{
-        Result,
+        Result, StdResult,
+        database::Database,
         util::{self, ResLog},
     };
+
+    /// Provides a convenience method for collecting MongoDB documents in a collection.
+    pub trait CollectionCollectAll<T, E> {
+        /// Collects all documents in the collection.
+        async fn collect(&self) -> StdResult<Vec<T>, E>;
+    }
+
+    impl<T: Send + Sync + serde::de::DeserializeOwned>
+        CollectionCollectAll<T, mongodb::error::Error> for mongodb::Collection<T>
+    {
+        async fn collect(&self) -> StdResult<Vec<T>, mongodb::error::Error> {
+            use poise::serenity_prelude::futures::TryStreamExt;
+            self.find(mongodb::bson::doc! {}).await?.try_collect().await
+        }
+    }
 
     pub struct TestDatabase(Database);
 

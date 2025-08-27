@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use mongodb::{bson, options::ReadConcern};
 use poise::serenity_prelude::futures::{StreamExt, TryStreamExt};
 
-use crate::{Result, StdResult, database, models, util::ResLog};
+use crate::{StdResult, database, models, util::ResLog};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct AppListingAggregate {
@@ -86,7 +86,10 @@ impl JunctionRepo {
         failed_apps
     }
 
-    pub async fn get_app_listings(&self, guild_id: i64) -> Result<Vec<models::AppListing>> {
+    pub async fn get_app_listings(
+        &self,
+        guild_id: i64,
+    ) -> mongodb::error::Result<Vec<models::AppListing>> {
         let pipeline = vec![
             bson::doc! { "$match": { "server_id": guild_id } },
             bson::doc! {
@@ -136,9 +139,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        database::test::TestDatabase,
+        Result,
+        database::CollectionCollectAll,
+        database::TestDatabase,
         models::{App, AppListing, Discord, Junction},
-        util::CollectionCollectAll,
     };
 
     use super::*;
