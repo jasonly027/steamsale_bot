@@ -1,12 +1,13 @@
 use crate::util::ResLog;
 
 mod commands;
+mod config;
 mod database;
 mod framework;
 mod models;
 mod repos;
+mod steam;
 mod util;
-mod config;
 
 type StdResult<T, E> = std::result::Result<T, E>;
 type Result<T> = StdResult<T, Error>;

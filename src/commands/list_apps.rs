@@ -83,11 +83,12 @@ pub async fn list_apps(ctx: framework::Context<'_>) -> Result<()> {
     // Get listings
     let guild_id: i64 = ctx.guild_id().with_context(|| "Getting guild_id")?.into();
     let repo = &ctx.data().repo;
-    let listings = repo.junction.get_app_listings(guild_id).await?;
+    let mut listings = repo.junction.get_app_listings(guild_id).await?;
     if listings.is_empty() {
         ctx.say("No apps currently being tracked.").await?;
         return Ok(());
     }
+    listings.sort_unstable_by(|a, b| a.app_name.cmp(&b.app_name));
 
     // Paginate listings
     let models::Discord { sale_threshold, .. } = repo
