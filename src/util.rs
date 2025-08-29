@@ -108,3 +108,14 @@ impl ToReply for serenity::CreateEmbed {
         poise::CreateReply::default().embed(self)
     }
 }
+
+pub fn parse_csv_app_ids(x: &str) -> StdResult<Vec<i32>, std::num::ParseIntError> {
+    x.split(",").try_fold(Vec::new(), |mut vec, app| {
+        vec.push(app.trim().parse()?);
+        Ok(vec)
+    })
+}
+
+pub const PARSE_APP_IDS_FAIL_MSG: &str = "Failed to parse appids. \
+Please make sure its in the format `<appid1>, <appid2>, ...`. \
+Ex: `1868140, 413150, 3527290`";

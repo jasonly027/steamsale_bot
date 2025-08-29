@@ -4,7 +4,7 @@ use poise::serenity_prelude as serenity;
 
 use crate::{
     Result, config, framework, repos,
-    util::{ResLog, ToReply},
+    util::{self, ResLog, ToReply},
 };
 
 enum SetThresholdResult {
@@ -63,12 +63,7 @@ pub async fn set_discount_threshold(
         }
 
         SetThresholdResult::InvalidAppIdString => {
-            ctx.say(
-                "Failed to parse appids. \
-                Please make sure its in the format `<appid1>, <appid2>, ...`. \
-                Ex: `1868140, 413150, 3527290`",
-            )
-            .await?;
+            ctx.say(util::PARSE_APP_IDS_FAIL_MSG).await?;
         }
     }
 
@@ -81,7 +76,7 @@ async fn set_apps_thresholds(
     threshold: i32,
     app_ids: &str,
 ) -> Result<SetThresholdResult> {
-    let Ok(app_ids) = parse_app_ids(app_ids) else {
+    let Ok(app_ids) = util::parse_csv_app_ids(app_ids) else {
         return Ok(SetThresholdResult::InvalidAppIdString);
     };
 
@@ -103,11 +98,4 @@ async fn set_guild_threshold(
     d_repo.set_threshold(guild_id, threshold).await.terror()?;
 
     Ok(SetThresholdResult::Success)
-}
-
-fn parse_app_ids(x: &str) -> Result<Vec<i32>> {
-    x.split(",").try_fold(Vec::new(), |mut vec, app| {
-        vec.push(app.trim().parse()?);
-        Ok(vec)
-    })
 }

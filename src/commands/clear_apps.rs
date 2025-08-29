@@ -40,7 +40,7 @@ pub async fn clear_apps(ctx: framework::Context<'_>) -> Result<()> {
     if confirmed {
         let guild_id: i64 = ctx.guild_id().with_context(|| "Getting guild_id")?.into();
         let repo = &ctx.data().repo.junction;
-        repo.clear_apps(guild_id).await?;
+        repo.clear_junctions(guild_id).await?;
 
         let embed = serenity::CreateEmbed::new()
             .title("Clear Tracked Apps?")

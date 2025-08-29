@@ -66,13 +66,22 @@ async fn register_commands(
 }
 
 async fn create_data() -> Result<Data> {
-    info!("Connecting to database");
+    let repo = {
     let uri: String = util::env_var("MONGODB_URI")?;
     let name: String = util::env_var("MONGODB_DBNAME")?;
     let db = database::Database::new(&uri, name).await?;
 
-    let repo = repos::Repo::new(Arc::new(db));
-    Ok(Data { repo })
+        repos::Repo::new(Arc::new(db))
+    };
+
+    let steam = {
+        let store = "https://store.steampowered.com";
+        let community = "https://steamcommunity.com";
+
+        steam::Client::new(store, community)
+    };
+
+    Ok(Data { repo, steam })
 }
 
 async fn command_check(ctx: Context<'_>) -> Result<bool> {

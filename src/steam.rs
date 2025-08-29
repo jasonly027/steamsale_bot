@@ -80,7 +80,7 @@ impl Client {
         }
     }
 
-    pub async fn fetch_one_full_app(&self, app_id: i32) -> StdResult<App, FetchError> {
+    pub async fn fetch_app(&self, app_id: i32) -> StdResult<App, FetchError> {
         let app_id = app_id.to_string();
         let url = format!("{}/api/appdetails", self.store_base);
         let query = [
@@ -92,7 +92,13 @@ impl Client {
             ("appids", &app_id),
         ];
 
-        let res = self.http.get(url).query(&query).send().await?;
+        let res = self
+            .http
+            .get(url)
+            .query(&query)
+            .send()
+            .await?
+            .error_for_status()?;
         let mut body = res.json::<serde_json::Value>().await?;
         let mut data = body
             .get_mut(app_id)
