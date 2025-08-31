@@ -9,13 +9,13 @@ pub trait ResLog<T, E> {
     fn terror(self) -> StdResult<T, E>;
 }
 
-impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
+impl<T, E: std::fmt::Debug> ResLog<T, E> for StdResult<T, E> {
     #[track_caller]
     fn twarn(self) -> StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
             warn!(
-                %err,
+                ?err,
                 "Error at {}",
                 loc_as_str(loc)
             );
@@ -27,7 +27,7 @@ impl<T, E: std::fmt::Display> ResLog<T, E> for StdResult<T, E> {
         self.inspect_err(|err| {
             let loc = std::panic::Location::caller();
             error!(
-                %err,
+                ?err,
                 "Error at {}",
                 loc_as_str(loc)
             );

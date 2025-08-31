@@ -132,6 +132,18 @@ impl JunctionRepo {
         };
         self.coll.delete_many(query)
     }
+
+    /// Inserts the junction if it's not already present in the collection.
+    pub fn add_junction(&self, junction: &models::Junction) -> mongodb::action::Update<'_> {
+        let query = bson::doc! {
+            "app_id": junction.app_id,
+            "server_id": junction.server_id,
+        };
+        let jdoc = bson::to_document(junction).expect("junction should be serializable");
+        let update = bson::doc! { "$setOnInsert": jdoc };
+
+        self.coll.update_one(query, update).upsert(true)
+    }
 }
 
 #[cfg(test)]
@@ -140,12 +152,10 @@ mod tests {
 
     use crate::{
         Result,
-        database::CollectionCollectAll,
-        database::TestDatabase,
+        database::{CollectionCollectAll, TestDatabase},
         models::{App, AppListing, Discord, Junction},
+        repos::junction_repo::JunctionRepo,
     };
-
-    use super::*;
 
     #[tokio::test]
     #[serial_test::serial(database)]
@@ -299,6 +309,48 @@ mod tests {
 
         let actual = db.junction().collect().await?;
         assert_eq!([other], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    async fn add_junction_inserts_junction_into_collection() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let expected = Junction::default();
+        repo.add_junction(&expected).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([expected], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    async fn add_junction_does_nothing_if_inserting_duplicate_variants() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let expected = Junction {
+            coming_soon: false,
+            ..Default::default()
+        };
+        repo.add_junction(&expected).await?;
+
+        // Duplicate variant
+        let duplicate = expected.clone();
+        repo.add_junction(&duplicate).await?;
+
+        // Another duplicate variant
+        let mut modified = expected.clone();
+        modified.coming_soon = true;
+        repo.add_junction(&modified).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([expected], actual[..]);
 
         Ok(())
     }

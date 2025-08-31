@@ -1,3 +1,5 @@
+use tracing_subscriber::EnvFilter;
+
 use crate::util::ResLog;
 
 mod commands;
@@ -16,9 +18,7 @@ type Error = anyhow::Error;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::try_new(
-            "info,serenity=WARN",
-        )?)
+        .with_env_filter(EnvFilter::try_new("info,serenity=WARN")?)
         .init();
     dotenvy::dotenv().twarn().ok();
 

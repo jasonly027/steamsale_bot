@@ -18,3 +18,6 @@ pub use clear_apps::*;
 
 mod remove_apps;
 pub use remove_apps::*;
+
+mod add_apps;
+pub use add_apps::*;

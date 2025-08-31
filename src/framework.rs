@@ -3,10 +3,11 @@ use std::sync::Arc;
 use poise::serenity_prelude as serenity;
 use tracing::{error, info};
 
-use crate::{Error, Result, StdResult, commands, database, repos, util};
+use crate::{Error, Result, StdResult, commands, database, repos, steam, util};
 
 pub struct Data {
     pub repo: repos::Repo,
+    pub steam: steam::Client,
 }
 
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -28,6 +29,7 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
                 commands::list_apps(),
                 commands::clear_apps(),
                 commands::remove_apps(),
+                commands::add_apps(),
             ],
             command_check: Some(|ctx| Box::pin(command_check(ctx))),
             on_error: |err| Box::pin(on_error(err)),
@@ -67,9 +69,9 @@ async fn register_commands(
 
 async fn create_data() -> Result<Data> {
     let repo = {
-    let uri: String = util::env_var("MONGODB_URI")?;
-    let name: String = util::env_var("MONGODB_DBNAME")?;
-    let db = database::Database::new(&uri, name).await?;
+        let uri: String = util::env_var("MONGODB_URI")?;
+        let name: String = util::env_var("MONGODB_DBNAME")?;
+        let db = database::Database::new(&uri, name).await?;
 
         repos::Repo::new(Arc::new(db))
     };

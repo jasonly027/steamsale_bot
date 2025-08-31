@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::Deserialize;
 
 use crate::StdResult;
@@ -67,20 +69,20 @@ pub struct SearchResult {
 #[derive(Debug, Clone)]
 pub struct Client {
     http: reqwest::Client,
-    store_base: String,
-    community_base: String,
+    store_base: Arc<String>,
+    community_base: Arc<String>,
 }
 
 impl Client {
     pub fn new(store_base: impl Into<String>, community_base: impl Into<String>) -> Self {
         Self {
             http: reqwest::Client::new(),
-            store_base: store_base.into(),
-            community_base: community_base.into(),
+            store_base: Arc::new(store_base.into()),
+            community_base: Arc::new(community_base.into()),
         }
     }
 
-    pub async fn fetch_app(&self, app_id: i32) -> StdResult<App, FetchError> {
+    pub async fn fetch_app(&self, app_id: i32) -> StdResult<Option<App>, FetchError> {
         let app_id = app_id.to_string();
         let url = format!("{}/api/appdetails", self.store_base);
         let query = [
@@ -100,14 +102,22 @@ impl Client {
             .await?
             .error_for_status()?;
         let mut body = res.json::<serde_json::Value>().await?;
-        let mut data = body
-            .get_mut(app_id)
-            .ok_or(FetchError::MissingJsonField)?
-            .get_mut("data")
-            .ok_or(FetchError::MissingJsonField)?
-            .take();
+        let app_res = body.get_mut(app_id).ok_or(FetchError::MissingJsonField)?;
 
-        Ok(serde_json::from_value(data.take())?)
+        if !app_res
+            .get("success")
+            .and_then(|s| s.as_bool())
+            .ok_or(FetchError::MissingJsonField)?
+        {
+            return Ok(None);
+        }
+
+        Ok(Some(serde_json::from_value(
+            app_res
+                .get_mut("data")
+                .ok_or(FetchError::MissingJsonField)?
+                .take(),
+        )?))
     }
 
     pub async fn search_apps(&self, query: &str) -> StdResult<Vec<SearchResult>, reqwest::Error> {
@@ -132,9 +142,18 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::{BufRead, Cursor},
+        thread,
+        time::Duration,
+    };
+
     use pretty_assertions::assert_eq;
 
-    use crate::{Result, steam::Client};
+    use crate::{
+        Result,
+        steam::{Client, FetchError},
+    };
 
     fn integration_client() -> Client {
         Client::new(
@@ -142,4 +161,31 @@ mod tests {
             "https://steamcommunity.com",
         )
     }
+
+    // #[tokio::test]
+    // async fn apptest() -> Result<()> {
+    //     let client = integration_client();
+
+    //     let data = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/apps_id"));
+    //     let cursor = Cursor::new(data);
+    //     let lines = cursor.lines();
+    //     for (idx, line) in lines.enumerate() {
+    //         let app_id: i32 = line?.parse()?;
+    //         println!("{idx}. {app_id}");
+
+    //         let app = client.fetch_app(app_id).await;
+    //         println!("{app:?}");
+
+    //         if app.is_err_and(|e| {
+    //             let FetchError::Http(e) = e else {
+    //                 return false;
+    //             };
+    //             e.status() == Some(reqwest::StatusCode::TOO_MANY_REQUESTS)
+    //         }) {
+    //             tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+    //         }
+    //     }
+
+    //     Ok(())
+    // }
 }

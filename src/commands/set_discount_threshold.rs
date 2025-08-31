@@ -21,7 +21,7 @@ pub async fn set_discount_threshold(
     #[min = 1]
     #[max = 99]
     threshold: i32,
-    #[max = 150]
+    #[max_length = 150]
     #[rename = "appids"]
     #[description = "Use this threshold only for these specific appids"]
     app_ids: Option<String>,

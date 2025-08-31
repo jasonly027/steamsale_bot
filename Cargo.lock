@@ -2579,6 +2579,7 @@ dependencies = [
  "anyhow",
  "derivative",
  "dotenvy",
+ "futures",
  "mongodb",
  "poise",
  "pretty_assertions",

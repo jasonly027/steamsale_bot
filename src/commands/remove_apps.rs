@@ -7,7 +7,7 @@ use crate::{Result, framework, util};
 #[tracing::instrument(skip(ctx))]
 pub async fn remove_apps(
     ctx: framework::Context<'_>,
-    #[max = 150]
+    #[max_length = 150]
     #[rename = "appids"]
     app_ids: String,
 ) -> Result<()> {
