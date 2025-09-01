@@ -21,3 +21,6 @@ pub use remove_apps::*;
 
 mod add_apps;
 pub use add_apps::*;
+
+mod search;
+pub use search::*;

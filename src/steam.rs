@@ -61,9 +61,9 @@ pub struct ReleaseDate {
 #[derivative(PartialEq, Eq)]
 pub struct SearchResult {
     #[serde(rename = "appid", deserialize_with = "str_parse")]
-    app_id: i32,
+    pub app_id: i32,
     #[derivative(PartialEq = "ignore")]
-    name: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone)]

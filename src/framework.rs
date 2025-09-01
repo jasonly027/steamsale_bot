@@ -1,12 +1,17 @@
 use std::sync::Arc;
 
+use derivative::Derivative;
 use poise::serenity_prelude as serenity;
 use tracing::{error, info};
 
 use crate::{Error, Result, StdResult, commands, database, repos, steam, util};
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Data {
+    #[derivative(Debug = "ignore")]
     pub repo: repos::Repo,
+    #[derivative(Debug = "ignore")]
     pub steam: steam::Client,
 }
 
@@ -30,6 +35,7 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
                 commands::clear_apps(),
                 commands::remove_apps(),
                 commands::add_apps(),
+                commands::search(),
             ],
             command_check: Some(|ctx| Box::pin(command_check(ctx))),
             on_error: |err| Box::pin(on_error(err)),
@@ -95,7 +101,7 @@ async fn command_check(ctx: Context<'_>) -> Result<bool> {
 }
 
 pub async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
-    error!(%err, "Unexpected error");
+    error!(?err, "Unexpected error");
 
     if let Some(ctx) = err.ctx() {
         ctx.say("An unexpected error has occured...")

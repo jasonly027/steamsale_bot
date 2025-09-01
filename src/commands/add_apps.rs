@@ -14,7 +14,9 @@ use crate::{
 #[tracing::instrument(skip(ctx))]
 pub async fn add_apps(
     ctx: framework::Context<'_>,
-    #[rename = "appids"] app_ids: String,
+    #[rename = "appids"]
+    #[max_length = 150]
+    app_ids: String,
     #[min = 1]
     #[max = 99]
     threshold: Option<i32>,
