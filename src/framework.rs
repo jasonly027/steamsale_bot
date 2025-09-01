@@ -1,3 +1,6 @@
+//! This module provides [`run`] for starting the bot and internally
+//! sets the bot's configuration.
+
 use std::sync::Arc;
 
 use derivative::Derivative;
@@ -6,11 +9,14 @@ use tracing::{error, info};
 
 use crate::{Error, Result, StdResult, commands, database, repos, steam, util};
 
+/// Custom data that is provided to all contexts.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Data {
+    /// A handle to all the repositories.
     #[derivative(Debug = "ignore")]
     pub repo: repos::Repo,
+    /// A handle to the Steam client.
     #[derivative(Debug = "ignore")]
     pub steam: steam::Client,
 }
@@ -27,7 +33,6 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
         })
         .options(poise::FrameworkOptions {
             commands: vec![
-                commands::test(),
                 commands::help(),
                 commands::bind(),
                 commands::set_discount_threshold(),

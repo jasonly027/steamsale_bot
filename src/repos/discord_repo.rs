@@ -1,3 +1,5 @@
+//! This module provides a repository for the discord collection.
+
 use mongodb::bson;
 
 use crate::{database, models};

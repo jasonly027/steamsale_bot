@@ -1,3 +1,5 @@
+//! This module provides models.
+
 use derivative::Derivative;
 use mongodb::bson;
 

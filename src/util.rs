@@ -1,3 +1,5 @@
+//! This module provides commonly used utilities.
+
 use anyhow::Context;
 use poise::serenity_prelude as serenity;
 use tracing::{error, warn};
@@ -44,6 +46,7 @@ fn loc_as_str(loc: &std::panic::Location<'_>) -> String {
     )
 }
 
+/// Error variants when getting an environment variable using [`env_var`].
 #[derive(Debug, thiserror::Error)]
 pub enum EnvVarError {
     #[error("Invalid/Missing {key} or {key}_FILE")]
@@ -52,6 +55,9 @@ pub enum EnvVarError {
     InvalidValue { key: String, err: String },
 }
 
+/// Gets the environment variable named `key` or reads the content at `key`_FILE.
+/// When both are defined, the former has precedence. Errors if the variable
+/// is unset or is not parsable to type T.
 pub fn env_var<T: std::str::FromStr>(key: &str) -> StdResult<T, EnvVarError>
 where
     T::Err: std::fmt::Display,

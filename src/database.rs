@@ -1,3 +1,5 @@
+//! This module provides [`Database`].
+
 use mongodb::{
     bson,
     options::{ClientOptions, ServerApi, ServerApiVersion},
@@ -24,9 +26,9 @@ impl Database {
         let mut options = {
             #[cfg(windows)]
             {
-                // https://github.com/mongodb/mongo-rust-driver/blob/2cf619c4f3484d1d7c42c3407bf9794c9e33d7ac/README.md#windows-dns-note
                 use mongodb::options::ResolverConfig;
                 ClientOptions::parse(uri)
+                    // https://github.com/mongodb/mongo-rust-driver/blob/2cf619c4f3484d1d7c42c3407bf9794c9e33d7ac/README.md#windows-dns-note
                     .resolver_config(ResolverConfig::cloudflare())
                     .await?
             }

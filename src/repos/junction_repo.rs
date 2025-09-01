@@ -1,36 +1,11 @@
+//! This module provides a repository for the junction collection.
+
 use std::fmt::Debug;
 
 use mongodb::{bson, options::ReadConcern};
 use poise::serenity_prelude::futures::{StreamExt, TryStreamExt};
 
 use crate::{StdResult, database, models, util::ResLog};
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-struct AppListingAggregate {
-    #[serde(flatten)]
-    junction: models::Junction,
-    apps: Vec<models::App>,
-}
-
-impl TryInto<models::AppListing> for AppListingAggregate {
-    type Error = bson::oid::ObjectId;
-
-    /// Fails and returns junction's _id if `self.apps` is empty.
-    fn try_into(mut self) -> StdResult<models::AppListing, Self::Error> {
-        if self.apps.is_empty() {
-            return Err(self.junction.id);
-        }
-        let models::App {
-            app_id, app_name, ..
-        } = self.apps.swap_remove(0);
-
-        Ok(models::AppListing {
-            app_id,
-            app_name,
-            sale_threshold: self.junction.sale_threshold,
-        })
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct JunctionRepo {
@@ -53,7 +28,7 @@ impl JunctionRepo {
     ) -> Vec<i32> {
         let app_ids = app_ids.into();
 
-        // Get a snapshot of every junction record in the
+        // Get a snapshot of every junction record that is in the
         // specified guild and is one of the ids in app_ids
         let filter = bson::doc! {
             "server_id": guild_id,
@@ -128,7 +103,7 @@ impl JunctionRepo {
     pub fn remove_junctions(&self, guild_id: i64, app_ids: &[i32]) -> mongodb::action::Delete<'_> {
         let query = bson::doc! {
             "server_id": guild_id,
-            "app_id": { "$in": &app_ids },
+            "app_id": { "$in": app_ids },
         };
         self.coll.delete_many(query)
     }
@@ -143,6 +118,33 @@ impl JunctionRepo {
         let update = bson::doc! { "$setOnInsert": jdoc };
 
         self.coll.update_one(query, update).upsert(true)
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct AppListingAggregate {
+    #[serde(flatten)]
+    junction: models::Junction,
+    apps: Vec<models::App>,
+}
+
+impl TryInto<models::AppListing> for AppListingAggregate {
+    type Error = bson::oid::ObjectId;
+
+    /// Fails and returns junction's _id if `self.apps` is empty.
+    fn try_into(mut self) -> StdResult<models::AppListing, Self::Error> {
+        if self.apps.is_empty() {
+            return Err(self.junction.id);
+        }
+        let models::App {
+            app_id, app_name, ..
+        } = self.apps.swap_remove(0);
+
+        Ok(models::AppListing {
+            app_id,
+            app_name,
+            sale_threshold: self.junction.sale_threshold,
+        })
     }
 }
 

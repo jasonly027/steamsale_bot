@@ -1,5 +1,4 @@
-mod test;
-pub use test::*;
+//! This module provides Discord command handlers.
 
 mod help;
 pub use help::*;

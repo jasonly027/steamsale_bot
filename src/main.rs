@@ -18,7 +18,7 @@ type Error = anyhow::Error;
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_new("info,serenity=WARN")?)
+        .with_env_filter(EnvFilter::from_default_env())
         .init();
     dotenvy::dotenv().twarn().ok();
 

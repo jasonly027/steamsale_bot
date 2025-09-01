@@ -1,3 +1,5 @@
+//! This module provides general configurations.
+
 use poise::serenity_prelude as serenity;
 
 /// rgb(107, 76, 136)

@@ -47,7 +47,7 @@ async fn fetch_apps(steam: &steam::Client, app_ids: Vec<i32>) -> (Vec<steam::App
 
     let fetches = stream::iter(app_ids.into_iter().map(|app_id| {
         let steam = steam.clone();
-        async move { (app_id, steam.fetch_app(app_id).await) }
+        async move { (app_id, steam.app_details(app_id).await) }
     }));
     let mut fetch_stream = fetches.buffer_unordered(FETCH_BUFFER_SIZE);
 

@@ -27,12 +27,10 @@ pub async fn bind(
         return Ok(());
     }
 
-    ctx.data()
-        .repo
-        .discord
-        .set_channel_id(channel.guild_id.into(), channel.id.into())
-        .await
-        .terror()?;
+    let repo = &ctx.data().repo.discord;
+    repo.set_channel_id(channel.guild_id.into(), channel.id.into())
+        .await?;
+
     ctx.say(format!("Bounded to <#{}>", channel.id)).await?;
 
     Ok(())

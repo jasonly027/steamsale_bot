@@ -29,10 +29,10 @@ pub async fn set_discount_threshold(
     ctx.defer().await?;
 
     let repo = &ctx.data().repo;
-    let guild: i64 = ctx.guild_id().with_context(|| "Getting guild_id")?.into();
+    let guild_id: i64 = ctx.guild_id().with_context(|| "Getting guild_id")?.into();
     let result = match &app_ids {
-        Some(ids) => set_apps_thresholds(repo, guild, threshold, ids).await,
-        None => set_guild_threshold(repo, guild, threshold).await,
+        Some(ids) => set_apps_thresholds(repo, guild_id, threshold, ids).await,
+        None => set_guild_threshold(repo, guild_id, threshold).await,
     }?;
 
     match result {
@@ -80,8 +80,8 @@ async fn set_apps_thresholds(
         return Ok(SetThresholdResult::InvalidAppIdString);
     };
 
-    let j_repo = &repo.junction;
-    let failed_apps = j_repo.set_thresholds(guild_id, threshold, app_ids).await;
+    let repo = &repo.junction;
+    let failed_apps = repo.set_thresholds(guild_id, threshold, app_ids).await;
     if !failed_apps.is_empty() {
         return Ok(SetThresholdResult::Fail(failed_apps));
     }
@@ -94,8 +94,8 @@ async fn set_guild_threshold(
     guild_id: i64,
     threshold: i32,
 ) -> Result<SetThresholdResult> {
-    let d_repo = &repo.discord;
-    d_repo.set_threshold(guild_id, threshold).await.terror()?;
+    let repo = &repo.discord;
+    repo.set_threshold(guild_id, threshold).await.terror()?;
 
     Ok(SetThresholdResult::Success)
 }

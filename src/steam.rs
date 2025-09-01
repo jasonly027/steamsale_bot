@@ -1,29 +1,20 @@
+//! This module provides integration with the Steam API.
+
 use std::sync::Arc;
 
 use serde::Deserialize;
 
 use crate::StdResult;
 
+/// Error variants when fetching Steam apps using [`Client::fetch_app`].
 #[derive(Debug, thiserror::Error)]
 pub enum FetchError {
     #[error("HTTP error: {0}")]
-    Http(reqwest::Error),
-    #[error("Failed to navigate through JSON before deserializing step")]
+    Http(#[from] reqwest::Error),
+    #[error("Failed to navigate through JSON before deserialization step")]
     MissingJsonField,
     #[error("JSON Deserialization error: {0}")]
-    JsonDeserialize(serde_json::Error),
-}
-
-impl From<reqwest::Error> for FetchError {
-    fn from(error: reqwest::Error) -> Self {
-        FetchError::Http(error)
-    }
-}
-
-impl From<serde_json::Error> for FetchError {
-    fn from(error: serde_json::Error) -> Self {
-        FetchError::JsonDeserialize(error)
-    }
+    JsonDeserialize(#[from] serde_json::Error),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -66,10 +57,13 @@ pub struct SearchResult {
     pub name: String,
 }
 
+/// A client for using the Steam API.
 #[derive(Debug, Clone)]
 pub struct Client {
     http: reqwest::Client,
+    /// Base url for the store endpoint.
     store_base: Arc<String>,
+    /// Base url for the community endpoint.
     community_base: Arc<String>,
 }
 
@@ -82,7 +76,7 @@ impl Client {
         }
     }
 
-    pub async fn fetch_app(&self, app_id: i32) -> StdResult<Option<App>, FetchError> {
+    pub async fn app_details(&self, app_id: i32) -> StdResult<Option<App>, FetchError> {
         let app_id = app_id.to_string();
         let url = format!("{}/api/appdetails", self.store_base);
         let query = [
@@ -104,20 +98,19 @@ impl Client {
         let mut body = res.json::<serde_json::Value>().await?;
         let app_res = body.get_mut(app_id).ok_or(FetchError::MissingJsonField)?;
 
-        if !app_res
+        let success = app_res
             .get("success")
             .and_then(|s| s.as_bool())
-            .ok_or(FetchError::MissingJsonField)?
-        {
+            .ok_or(FetchError::MissingJsonField)?;
+        if !success {
             return Ok(None);
         }
 
-        Ok(Some(serde_json::from_value(
-            app_res
-                .get_mut("data")
-                .ok_or(FetchError::MissingJsonField)?
-                .take(),
-        )?))
+        let data = app_res
+            .get_mut("data")
+            .ok_or(FetchError::MissingJsonField)?
+            .take();
+        Ok(Some(serde_json::from_value(data)?))
     }
 
     pub async fn search_apps(&self, query: &str) -> StdResult<Vec<SearchResult>, reqwest::Error> {

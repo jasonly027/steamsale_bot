@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{Context, bail};
 use futures::StreamExt;
 use poise::serenity_prelude as serenity;
 
@@ -21,7 +21,7 @@ pub async fn search(ctx: framework::Context<'_>, #[max_length = 150] query: Stri
     let id = ctx.id().to_string();
     ctx.send(search_result_dropdown(&id, &search_results))
         .await?;
-    let Some((event, app_id)) = get_response(&ctx, &id).await? else {
+    let Some((event, app_id)) = get_response(&ctx, id).await? else {
         return Ok(());
     };
     let Some(app) = get_app(&ctx, &event, app_id).await? else {
@@ -45,7 +45,7 @@ fn search_result_dropdown(id: &str, results: &[steam::SearchResult]) -> poise::C
         .description("Select an app below.")
         .footer(serenity::CreateEmbedFooter::new(
             "Results may include non-addable apps. \
-Make sure your choice is either priced or yet to be released",
+Make sure your choice is either priced or yet to be released.",
         ))
         .color(config::BRAND_DARK_COLOR);
 
@@ -108,12 +108,10 @@ async fn listen_for_response(
 
 fn parse_response(event: &serenity::ComponentInteraction) -> Result<Option<i32>> {
     let serenity::ComponentInteractionDataKind::StringSelect { values } = &event.data.kind else {
-        return Err(anyhow::anyhow!(
-            "Data kind wasn't StringSelect while parsing response"
-        ));
+        bail!("Not StringSelect. event: {event:?}");
     };
     let Some(choice) = values.first() else {
-        return Err(anyhow::anyhow!("Values was empty while parsing response"));
+        bail!("Unexpected values: event: {event:?}");
     };
 
     if choice == CANCEL_SEARCH_OPTION {
@@ -130,7 +128,7 @@ async fn get_app(
 ) -> Result<Option<steam::App>> {
     let steam = &ctx.data().steam;
 
-    let Some(app) = steam.fetch_app(app_id).await? else {
+    let Some(app) = steam.app_details(app_id).await? else {
         let edit = create_edit(
             "Couldn't get more details on the app. \
 It may not be available in the US.",

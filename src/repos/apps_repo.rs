@@ -1,3 +1,5 @@
+//! This module provides a repository for the apps collection.
+//!
 use mongodb::bson;
 
 use crate::{database, models};
@@ -24,7 +26,12 @@ impl AppsRepo {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::{database::{CollectionCollectAll, TestDatabase}, models::App, repos::apps_repo::AppsRepo, Result};
+    use crate::{
+        Result,
+        database::{CollectionCollectAll, TestDatabase},
+        models::App,
+        repos::apps_repo::AppsRepo,
+    };
 
     #[tokio::test]
     #[serial_test::serial(database)]
@@ -47,7 +54,10 @@ mod tests {
         let db = TestDatabase::new().await?;
         let repo = AppsRepo::new(&db);
 
-        let mut expected = App {app_name: "name".to_string(), ..Default::default()};
+        let mut expected = App {
+            app_name: "name".to_string(),
+            ..Default::default()
+        };
         repo.upsert_app(&expected).await?;
 
         expected.app_name = "changed".to_string();

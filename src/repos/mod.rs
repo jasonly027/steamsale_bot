@@ -1,3 +1,5 @@
+//! This module provides a aggregate repository for use with [`crate::database::Database`].
+
 use std::sync::Arc;
 
 use crate::database;
