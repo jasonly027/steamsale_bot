@@ -15,7 +15,7 @@ use crate::{
 pub async fn add_apps(
     ctx: framework::Context<'_>,
     #[rename = "appids"]
-    #[max_length = 150]
+    #[max_length = 75]
     app_ids: String,
     #[min = 1]
     #[max = 99]

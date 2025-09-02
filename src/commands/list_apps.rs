@@ -1,149 +1,116 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use poise::serenity_prelude::{self as serenity, futures::StreamExt};
-use tracing::error;
+use futures::StreamExt;
+use poise::serenity_prelude as serenity;
 
 use crate::{Result, config, framework, models};
 
-const PAGE_SIZE: usize = 20;
+const PAGE_SIZE: usize = 10;
 
 /// List apps being tracked and their discount thresholds.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn list_apps(ctx: framework::Context<'_>) -> Result<()> {
     ctx.defer().await?;
-
-    // Get listings
     let guild_id: i64 = ctx.guild_id().with_context(|| "Getting guild_id")?.into();
+
+    let Some(listings) = get_app_listings(&ctx, guild_id).await? else {
+        return Ok(());
+    };
+    let pages = listings.chunks(PAGE_SIZE).collect::<Vec<_>>();
+    let sale_threshold = get_guild_sale_threshold(&ctx, guild_id).await?;
+
+    paginate(&ctx, &pages, sale_threshold).await?;
+
+    Ok(())
+}
+
+async fn get_app_listings(
+    ctx: &framework::Context<'_>,
+    guild_id: i64,
+) -> Result<Option<Vec<models::AppListing>>> {
     let repo = &ctx.data().repo;
     let mut listings = repo.junction.get_app_listings(guild_id).await?;
+
     if listings.is_empty() {
         ctx.say("No apps currently being tracked.").await?;
-        return Ok(());
+        Ok(None)
+    } else {
+        listings.sort_unstable_by(|a, b| a.app_name.cmp(&b.app_name));
+        Ok(Some(listings))
     }
-    listings.sort_unstable_by(|a, b| a.app_name.cmp(&b.app_name));
+}
 
-    // Paginate listings
+async fn get_guild_sale_threshold(ctx: &framework::Context<'_>, guild_id: i64) -> Result<i32> {
+    let repo = &ctx.data().repo.discord;
     let models::Discord { sale_threshold, .. } = repo
-        .discord
         .find_one_by_guild_id(guild_id)
         .await?
         .with_context(|| anyhow::anyhow!("Missing Discord record for guild_id={guild_id}"))?;
-    let paginator = Paginator::new(ctx.id(), &listings, sale_threshold);
+
+    Ok(sale_threshold)
+}
+
+async fn paginate(
+    ctx: &framework::Context<'_>,
+    pages: &[&[models::AppListing]],
+    threshold: i32,
+) -> Result<()> {
+    let id = ctx.id().to_string();
+    let prev_button_id = format!("{}prev", id);
+    let next_button_id = format!("{}next", id);
 
     // Send first page
-    let (embed, components) = paginator
-        .get(0)
-        .expect("there should be at least one listing");
-    let mut reply = poise::CreateReply::default().embed(embed);
-    if let Some(components) = components {
-        reply = reply.components(components);
-    }
+    let reply = {
+        let components = serenity::CreateActionRow::Buttons(vec![
+            serenity::CreateButton::new(&prev_button_id).emoji('◀'),
+            serenity::CreateButton::new(&next_button_id).emoji('▶'),
+        ]);
+        poise::CreateReply::default()
+            .embed(create_embed(0, pages, threshold))
+            .components(vec![components])
+    };
     ctx.send(reply).await?;
-    if paginator.len() == 1 {
-        return Ok(());
-    }
 
-    // Listen for previous/next page requests
+    // Handle page turns
+    let mut current_page = 0;
     let mut listener = serenity::ComponentInteractionCollector::new(ctx)
-        .channel_id(ctx.channel_id())
-        .custom_ids(paginator.ids().to_vec())
+        .filter(move |ev| ev.data.custom_id.starts_with(&id))
         .timeout(Duration::from_secs(300))
         .stream();
     while let Some(event) = listener.next().await {
-        let id = &event.data.custom_id;
-        let Some(requested) = Paginator::parse_page_number(id) else {
-            error!(id, "Couldn't parse page number");
+        let action = &event.data.custom_id;
+        if *action == next_button_id {
+            current_page += 1;
+            if current_page >= pages.len() {
+                current_page = 0;
+            }
+        } else if *action == prev_button_id {
+            current_page = current_page.checked_sub(1).unwrap_or(pages.len() - 1);
+        } else {
             continue;
-        };
-        let Some((embed, components)) = paginator.get(requested) else {
-            error!(
-                requested,
-                paginator_len = paginator.len(),
-                "Request a page out of bounds"
-            );
-            continue;
-        };
-
-        let mut edit = serenity::EditInteractionResponse::new().embed(embed);
-        if let Some(components) = components {
-            edit = edit.components(components);
         }
-        event.edit_response(&ctx, edit).await?;
+
+        let update = serenity::CreateInteractionResponse::UpdateMessage(
+            serenity::CreateInteractionResponseMessage::new().embed(create_embed(
+                current_page,
+                pages,
+                threshold,
+            )),
+        );
+        event.create_response(&ctx, update).await?;
     }
 
     Ok(())
 }
 
-struct Paginator<'a> {
-    page_ids: Vec<String>,
-    listings: Vec<&'a [models::AppListing]>,
+fn create_embed(
+    current_page: usize,
+    pages: &[&[models::AppListing]],
     threshold: i32,
-}
-
-impl<'a> Paginator<'a> {
-    fn new(id: u64, listings: &'a [models::AppListing], threshold: i32) -> Self {
-        let chunked_listings = listings.chunks(PAGE_SIZE).collect::<Vec<_>>();
-        let page_ids = (0..chunked_listings.len())
-            .map(|i| format!("{id},{i}"))
-            .collect();
-
-        Self {
-            page_ids,
-            listings: chunked_listings,
-            threshold,
-        }
-    }
-
-    fn parse_page_number(str: &str) -> Option<usize> {
-        str.rsplit(",").next().map(|s| s.parse().ok())?
-    }
-
-    fn get(
-        &self,
-        page: usize,
-    ) -> Option<(
-        serenity::CreateEmbed,
-        Option<Vec<serenity::CreateActionRow>>,
-    )> {
-        if page >= self.listings.len() {
-            return None;
-        }
-
-        let embed = listing_embed(self.listings[page], self.threshold);
-
-        let mut btns = Vec::new();
-        if page > 0 {
-            let left_id = self.page_ids[page - 1].clone();
-            let button = serenity::CreateButton::new(left_id).label("⬅️");
-            btns.push(button);
-        }
-        if page + 1 < self.listings.len() {
-            let right_id = self.page_ids[page + 1].clone();
-            let btn = serenity::CreateButton::new(right_id).label("➡️");
-            btns.push(btn);
-        }
-        let components = if !btns.is_empty() {
-            Some(vec![serenity::CreateActionRow::Buttons(btns)])
-        } else {
-            None
-        };
-
-        Some((embed, components))
-    }
-
-    fn ids(&self) -> &[String] {
-        &self.page_ids
-    }
-
-    fn len(&self) -> usize {
-        self.listings.len()
-    }
-}
-
-fn listing_embed(listings: &[models::AppListing], threshold: i32) -> serenity::CreateEmbed {
-    let description = listings
+) -> serenity::CreateEmbed {
+    let description = pages[current_page]
         .iter()
         .map(
             |models::AppListing {
@@ -152,18 +119,18 @@ fn listing_embed(listings: &[models::AppListing], threshold: i32) -> serenity::C
                  sale_threshold,
              }| {
                 match sale_threshold {
-                    Some(threshold) => format!("{app_name} {app_id} {threshold}%"),
-                    None => format!("{app_name} {app_id}"),
+                    Some(threshold) => format!("{app_name} ({app_id}) ({threshold}%)"),
+                    None => format!("{app_name} ({app_id})"),
                 }
             },
         )
         .collect::<Vec<_>>()
         .join("\n");
 
-    let footer = format!("General Discount Threshold: {threshold}");
+    let footer = format!("General Discount Threshold: {threshold}%");
 
     serenity::CreateEmbed::new()
-        .title("Tracked Apps")
+        .title(format!("Tracked Apps {}/{}", current_page + 1, pages.len()))
         .description(description)
         .footer(serenity::CreateEmbedFooter::new(footer))
         .color(config::BRAND_DARK_COLOR)
