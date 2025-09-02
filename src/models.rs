@@ -5,13 +5,14 @@ use mongodb::bson;
 
 use crate::steam;
 
-#[derive(Debug, Clone, Default, Derivative, serde::Deserialize, serde::Serialize)]
-#[derivative(PartialEq, Eq)]
+#[derive(Debug, Clone,Derivative, serde::Deserialize, serde::Serialize)]
+#[derivative(Default, PartialEq, Eq)]
 pub struct Discord {
     #[serde(rename = "_id", skip_serializing)]
     #[derivative(PartialEq = "ignore")]
     pub id: bson::oid::ObjectId,
     pub channel_id: i64,
+    #[derivative(Default(value = "1"))]
     pub sale_threshold: i32,
     pub server_id: i64,
 }

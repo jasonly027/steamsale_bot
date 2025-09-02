@@ -11,7 +11,7 @@ use crate::{
 
 /// Adds apps to the tracker.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn add_apps(
     ctx: framework::Context<'_>,
     #[rename = "appids"]

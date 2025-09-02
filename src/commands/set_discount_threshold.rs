@@ -15,7 +15,7 @@ enum SetThresholdResult {
 
 /// Sets the minimum discount required to trigger a sale alert.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn set_discount_threshold(
     ctx: framework::Context<'_>,
     #[min = 1]

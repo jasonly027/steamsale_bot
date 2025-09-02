@@ -35,6 +35,27 @@ impl DiscordRepo {
         let filter = bson::doc! { "server_id": guild_id };
         self.coll.find_one(filter)
     }
+
+    pub fn remove_guild(&self, guild_id: i64) -> mongodb::action::Delete<'_> {
+        let query = bson::doc! { "server_id": guild_id };
+        self.coll.delete_one(query)
+    }
+
+    pub fn add_guild(&self, guild_id: i64, channel_id: i64) -> mongodb::action::Update<'_> {
+        const DEFAULT_SALE_THRESHOLD: i32 = 1;
+
+        let query = bson::doc! { "server_id": guild_id };
+        let discord = models::Discord {
+            id: Default::default(),
+            server_id: guild_id,
+            channel_id,
+            sale_threshold: DEFAULT_SALE_THRESHOLD,
+        };
+        let ddoc = bson::to_document(&discord).expect("discord should be serializable");
+        let update = bson::doc! { "$setOnInsert" : ddoc };
+
+        self.coll.update_one(query, update).upsert(true)
+    }
 }
 
 #[cfg(test)]
@@ -110,6 +131,77 @@ mod tests {
 
         let actual = repo.find_one_by_guild_id(expected.server_id).await?;
         assert_eq!(Some(expected), actual);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn remove_guild_only_deletes_target_guild() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = DiscordRepo::new(&db);
+
+        let target = Discord { server_id: 0, ..Default::default() };
+        let other  = Discord { server_id: 1, ..Default::default() };
+        db.discord().insert_many([&target, &other]).await?;
+
+        repo.remove_guild(target.server_id).await?;
+
+        let actual = db.discord().collect().await?;
+        assert_eq!([other], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn add_guild_inserts_guild() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = DiscordRepo::new(&db);
+
+        let expected = Discord {
+            server_id: 0,
+            channel_id: 0,
+            ..Default::default()
+        };
+
+        repo.add_guild(expected.server_id, expected.channel_id).await?;
+
+        let actual = db.discord().collect().await?;
+        assert_eq!([expected], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    async fn add_guild_does_nothing_if_inserting_duplicate_variants() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = DiscordRepo::new(&db);
+
+        let expected = Discord {
+            server_id: 0,
+            channel_id: 0,
+            ..Default::default()
+        };
+        repo.add_guild(expected.server_id, expected.channel_id)
+            .await?;
+
+        // Duplicate variant
+        let duplicate = expected.clone();
+        repo.add_guild(duplicate.server_id, duplicate.channel_id)
+            .await?;
+
+        // Another duplicate variant
+        let mut modified = expected.clone();
+        modified.channel_id = 2;
+        repo.add_guild(modified.server_id, modified.channel_id)
+            .await?;
+
+        let actual = db.discord().collect().await?;
+        assert_eq!([expected], actual[..]);
 
         Ok(())
     }

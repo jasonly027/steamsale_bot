@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Context;
 use poise::serenity_prelude as serenity;
 
@@ -11,7 +13,7 @@ const MISSING_PERMISSIONS: &str =
 
 /// Set the channel where alerts are sent. Sends to the server default channel by default.
 #[poise::command(slash_command, user_cooldown = 3, on_error=on_error)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn bind(
     ctx: framework::Context<'_>,
     #[channel_types("Text")] channel: serenity::GuildChannel,
@@ -28,15 +30,19 @@ pub async fn bind(
     }
 
     let repo = &ctx.data().repo.discord;
-    repo.set_channel_id(channel.guild_id.into(), channel.id.into())
-        .await?;
+    let guild_id = channel.guild_id.into();
+    let channel_id = channel.id.into();
+    // Also try adding the entire guild in case registering failed in
+    // crate::events::GuildAvailable.
+    repo.add_guild(guild_id, channel_id).await?;
+    repo.set_channel_id(guild_id, channel_id).await?;
 
     ctx.say(format!("Bounded to <#{}>", channel.id)).await?;
 
     Ok(())
 }
 
-async fn on_error(err: poise::FrameworkError<'_, framework::Data, Error>) {
+async fn on_error(err: poise::FrameworkError<'_, Arc<framework::Data>, Error>) {
     match err {
         poise::FrameworkError::ArgumentParse { ctx, .. } => {
             ctx.say(MISSING_PERMISSIONS).await.terror().ok();

@@ -4,7 +4,7 @@ use crate::{Result, framework, util};
 
 /// Remove apps from the tracker.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn remove_apps(
     ctx: framework::Context<'_>,
     #[max_length = 150]

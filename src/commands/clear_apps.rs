@@ -1,14 +1,15 @@
 use std::time::Duration;
 
 use anyhow::{Context, bail};
-use poise::serenity_prelude::{self as serenity, futures::StreamExt};
+use futures::StreamExt;
+use poise::serenity_prelude as serenity;
 use strum::IntoEnumIterator;
 
 use crate::{Result, config, framework};
 
 /// Remove all apps from the tracker.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn clear_apps(ctx: framework::Context<'_>) -> Result<()> {
     let id = ctx.id().to_string();
 

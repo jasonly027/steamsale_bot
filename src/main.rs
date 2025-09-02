@@ -5,6 +5,7 @@ use crate::util::ResLog;
 mod commands;
 mod config;
 mod database;
+mod events;
 mod framework;
 mod models;
 mod repos;

@@ -8,7 +8,7 @@ use crate::{Result, config, framework, models, repos, steam};
 
 /// Search for an app to add to the tracker.
 #[poise::command(slash_command, user_cooldown = 3)]
-#[tracing::instrument(skip(ctx))]
+#[tracing::instrument(level = "error", skip(ctx))]
 pub async fn search(ctx: framework::Context<'_>, #[max_length = 150] query: String) -> Result<()> {
     ctx.defer().await?;
 

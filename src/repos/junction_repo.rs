@@ -2,8 +2,8 @@
 
 use std::fmt::Debug;
 
+use futures::{StreamExt, TryStreamExt};
 use mongodb::{bson, options::ReadConcern};
-use poise::serenity_prelude::futures::{StreamExt, TryStreamExt};
 
 use crate::{StdResult, database, models, util::ResLog};
 

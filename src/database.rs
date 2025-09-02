@@ -77,6 +77,7 @@ pub use test::*;
 mod test {
     use std::ops::Deref;
 
+    use futures::TryStreamExt;
     use mongodb::bson;
 
     use crate::{
@@ -95,7 +96,6 @@ mod test {
         CollectionCollectAll<T, mongodb::error::Error> for mongodb::Collection<T>
     {
         async fn collect(&self) -> StdResult<Vec<T>, mongodb::error::Error> {
-            use poise::serenity_prelude::futures::TryStreamExt;
             self.find(mongodb::bson::doc! {}).await?.try_collect().await
         }
     }

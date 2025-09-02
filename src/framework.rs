@@ -7,12 +7,13 @@ use derivative::Derivative;
 use poise::serenity_prelude as serenity;
 use tracing::{error, info};
 
-use crate::{Error, Result, StdResult, commands, database, repos, steam, util};
+use crate::{Error, Result, StdResult, commands, events, repos, steam, util::PoiseData};
 
 /// Custom data that is provided to all contexts.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Data {
+    pub http: Arc<serenity::Http>,
     /// A handle to all the repositories.
     #[derivative(Debug = "ignore")]
     pub repo: repos::Repo,
@@ -21,14 +22,20 @@ pub struct Data {
     pub steam: steam::Client,
 }
 
-pub type Context<'a> = poise::Context<'a, Data, Error>;
+impl serenity::prelude::TypeMapKey for Data {
+    type Value = Arc<Data>;
+}
+
+pub type Context<'a> = poise::Context<'a, Arc<Data>, Error>;
 
 pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
-    let framework = poise::Framework::<Data, Error>::builder()
+    let framework = poise::Framework::<Arc<Data>, Error>::builder()
         .setup(move |ctx, _ready, framework| {
             Box::pin(async move {
+                info!("Setting up poise");
                 register_commands(ctx, &framework.options().commands, dev_guild).await?;
-                create_data().await
+
+                Ok(ctx.poise_data_unwrap().await)
             })
         })
         .options(poise::FrameworkOptions {
@@ -52,6 +59,9 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
+        .event_handler(events::SerenityReady)
+        .event_handler(events::GuildAvailable)
+        .event_handler(events::RemovedFromGuild)
         .await;
 
     info!("Starting framework");
@@ -60,7 +70,7 @@ pub async fn run(token: &str, dev_guild: Option<u64>) -> Result<()> {
 
 async fn register_commands(
     ctx: &serenity::Context,
-    commands: &[poise::Command<Data, Error>],
+    commands: &[poise::Command<Arc<Data>, Error>],
     dev_guild: Option<u64>,
 ) -> StdResult<(), serenity::Error> {
     match dev_guild {
@@ -78,25 +88,6 @@ async fn register_commands(
     Ok(())
 }
 
-async fn create_data() -> Result<Data> {
-    let repo = {
-        let uri: String = util::env_var("MONGODB_URI")?;
-        let name: String = util::env_var("MONGODB_DBNAME")?;
-        let db = database::Database::new(&uri, name).await?;
-
-        repos::Repo::new(Arc::new(db))
-    };
-
-    let steam = {
-        let store = "https://store.steampowered.com";
-        let community = "https://steamcommunity.com";
-
-        steam::Client::new(store, community)
-    };
-
-    Ok(Data { repo, steam })
-}
-
 async fn command_check(ctx: Context<'_>) -> Result<bool> {
     if ctx.guild_id().is_some() {
         return Ok(true);
@@ -105,7 +96,7 @@ async fn command_check(ctx: Context<'_>) -> Result<bool> {
     Ok(false)
 }
 
-pub async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
+pub async fn on_error(err: poise::FrameworkError<'_, Arc<Data>, Error>) {
     error!(?err, "Unexpected error");
 
     if let Some(ctx) = err.ctx() {
