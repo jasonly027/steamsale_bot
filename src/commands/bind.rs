@@ -34,7 +34,7 @@ pub async fn bind(
     let channel_id = channel.id.into();
     // Also try adding the entire guild in case registering failed in
     // crate::events::GuildAvailable.
-    repo.add_guild(guild_id, channel_id).await?;
+    repo.add_guild_if_not_exists(guild_id, channel_id).await?;
     repo.set_channel_id(guild_id, channel_id).await?;
 
     ctx.say(format!("Bounded to <#{}>", channel.id)).await?;

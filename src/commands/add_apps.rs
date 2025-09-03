@@ -105,7 +105,7 @@ async fn add_apps_to_db<'a>(
 
         if repo
             .junction
-            .add_junction(&junction)
+            .add_junction_if_not_exists(&junction)
             .session(&mut session)
             .await
             .inspect_err(|err| error!(?err, "Failed to add junction"))

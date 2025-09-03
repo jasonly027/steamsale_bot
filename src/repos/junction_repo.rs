@@ -108,8 +108,10 @@ impl JunctionRepo {
         self.coll.delete_many(query)
     }
 
-    /// Inserts the junction if it's not already present in the collection.
-    pub fn add_junction(&self, junction: &models::Junction) -> mongodb::action::Update<'_> {
+    pub fn add_junction_if_not_exists(
+        &self,
+        junction: &models::Junction,
+    ) -> mongodb::action::Update<'_> {
         let query = bson::doc! {
             "app_id": junction.app_id,
             "server_id": junction.server_id,
@@ -130,6 +132,14 @@ impl JunctionRepo {
         let jdoc = bson::to_document(junction).expect("junction should be serializable");
         let update = bson::doc! { "$set": jdoc };
         self.coll.update_one(query, update)
+    }
+
+    pub fn remove_junction(&self, guild_id: i64, app_id: i32) -> mongodb::action::Delete<'_> {
+        let query = bson::doc! {
+            "server_id": guild_id,
+            "app_id": app_id
+        };
+        self.coll.delete_one(query)
     }
 }
 
@@ -330,12 +340,12 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial(database)]
-    async fn add_junction_inserts_junction_into_collection() -> Result<()> {
+    async fn add_junction_if_not_exists_inserts_junction_into_collection() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
 
         let expected = Junction::default();
-        repo.add_junction(&expected).await?;
+        repo.add_junction_if_not_exists(&expected).await?;
 
         let actual = db.junction().collect().await?;
         assert_eq!([expected], actual[..]);
@@ -345,7 +355,8 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial(database)]
-    async fn add_junction_does_nothing_if_inserting_duplicate_variants() -> Result<()> {
+    async fn add_junction_if_not_exists_does_nothing_if_inserting_duplicate_variants() -> Result<()>
+    {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
 
@@ -353,16 +364,16 @@ mod tests {
             coming_soon: false,
             ..Default::default()
         };
-        repo.add_junction(&expected).await?;
+        repo.add_junction_if_not_exists(&expected).await?;
 
         // Duplicate variant
         let duplicate = expected.clone();
-        repo.add_junction(&duplicate).await?;
+        repo.add_junction_if_not_exists(&duplicate).await?;
 
         // Another duplicate variant
         let mut modified = expected.clone();
         modified.coming_soon = true;
-        repo.add_junction(&modified).await?;
+        repo.add_junction_if_not_exists(&modified).await?;
 
         let actual = db.junction().collect().await?;
         assert_eq!([expected], actual[..]);
@@ -394,18 +405,35 @@ mod tests {
         let db = TestDatabase::new().await?;
         let repo = JunctionRepo::new(&db);
 
-        let target = Junction { coming_soon: false, is_trailing_sale_day: false, ..Default::default() };
+        let mut target = Junction { coming_soon: false, is_trailing_sale_day: false, ..Default::default() };
         let other = Junction::default();
         db.junction().insert_many([&target, &other]).await?;
-        // Fetch is needed so they have correct _id
-        let mut expected = db.junction().collect().await?;
 
-        expected[0].coming_soon = true;
-        expected[0].is_trailing_sale_day = true;
-        repo.update_junction(&expected[0]).await?;
+        target.coming_soon = true;
+        target.is_trailing_sale_day = true;
+        repo.update_junction(&target).await?;
 
         let actual = db.junction().collect().await?;
-        assert_eq!(expected, actual);
+        assert_eq!([target, other], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn remove_junction_only_deletes_target() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let target = Junction { server_id: 0, app_id: 0, ..Default::default() };
+        let other = Junction { server_id: 0, app_id: 1, ..Default::default() };
+        db.junction().insert_many([&target, &other]).await?;
+
+        repo.remove_junction(target.server_id, target.app_id).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!([other], actual[..]);
 
         Ok(())
     }

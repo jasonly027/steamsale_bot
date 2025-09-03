@@ -162,7 +162,7 @@ async fn add_app_to_db(
         sale_threshold: None,
     };
     repo.junction
-        .add_junction(&junction)
+        .add_junction_if_not_exists(&junction)
         .session(&mut session)
         .await?;
     repo.apps

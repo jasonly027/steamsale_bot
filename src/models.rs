@@ -5,11 +5,10 @@ use mongodb::bson;
 
 use crate::steam;
 
-#[derive(Debug, Clone,Derivative, serde::Deserialize, serde::Serialize)]
-#[derivative(Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Derivative, serde::Deserialize, serde::Serialize)]
+#[derivative(Default)]
 pub struct Discord {
-    #[serde(rename = "_id", skip_serializing)]
-    #[derivative(PartialEq = "ignore")]
+    #[serde(rename = "_id")]
     pub id: bson::oid::ObjectId,
     pub channel_id: i64,
     #[derivative(Default(value = "1"))]
@@ -17,11 +16,11 @@ pub struct Discord {
     pub server_id: i64,
 }
 
-#[derive(Debug, Clone, Default, Derivative, serde::Deserialize, serde::Serialize)]
-#[derivative(PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Derivative, serde::Deserialize, serde::Serialize,
+)]
 pub struct Junction {
-    #[serde(rename = "_id", skip_serializing)]
-    #[derivative(PartialEq = "ignore")]
+    #[serde(rename = "_id")]
     pub id: bson::oid::ObjectId,
     pub app_id: i32,
     pub server_id: i64,
@@ -31,11 +30,11 @@ pub struct Junction {
     pub sale_threshold: Option<i32>,
 }
 
-#[derive(Debug, Clone, Default, Derivative, serde::Deserialize, serde::Serialize)]
-#[derivative(PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Derivative, serde::Deserialize, serde::Serialize,
+)]
 pub struct App {
-    #[serde(rename = "_id", skip_serializing)]
-    #[derivative(PartialEq = "ignore")]
+    #[serde(rename = "_id")]
     pub id: bson::oid::ObjectId,
     pub app_id: i32,
     pub app_name: String,

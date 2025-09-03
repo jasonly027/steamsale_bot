@@ -97,6 +97,22 @@ async fn command_check(ctx: Context<'_>) -> Result<bool> {
 }
 
 pub async fn on_error(err: poise::FrameworkError<'_, Arc<Data>, Error>) {
+    if let poise::FrameworkError::CooldownHit {
+        remaining_cooldown,
+        ctx,
+        ..
+    } = err
+    {
+        ctx.say(format!(
+            "Command used too quickly! Please wait {} seconds before retrying.",
+            remaining_cooldown.as_secs()
+        ))
+        .await
+        .inspect_err(|err| error!(?err, "Failed to send cooldown hit message"))
+        .ok();
+        return;
+    }
+
     error!(?err, "Unexpected error");
 
     if let Some(ctx) = err.ctx() {

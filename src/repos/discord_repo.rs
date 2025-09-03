@@ -28,10 +28,7 @@ impl DiscordRepo {
         self.coll.update_one(query, update)
     }
 
-    pub fn get_guild(
-        &self,
-        guild_id: i64,
-    ) -> mongodb::action::FindOne<'_, models::Discord> {
+    pub fn get_guild(&self, guild_id: i64) -> mongodb::action::FindOne<'_, models::Discord> {
         let filter = bson::doc! { "server_id": guild_id };
         self.coll.find_one(filter)
     }
@@ -41,7 +38,11 @@ impl DiscordRepo {
         self.coll.delete_one(query)
     }
 
-    pub fn add_guild(&self, guild_id: i64, channel_id: i64) -> mongodb::action::Update<'_> {
+    pub fn add_guild_if_not_exists(
+        &self,
+        guild_id: i64,
+        channel_id: i64,
+    ) -> mongodb::action::Update<'_> {
         const DEFAULT_SALE_THRESHOLD: i32 = 1;
 
         let query = bson::doc! { "server_id": guild_id };
@@ -156,52 +157,58 @@ mod tests {
 
     #[tokio::test]
     #[serial_test::serial(database)]
-    #[rustfmt::skip]
-    async fn add_guild_inserts_guild() -> Result<()> {
+    async fn add_guild_if_not_exists_inserts_guild() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = DiscordRepo::new(&db);
 
-        let expected = Discord {
-            server_id: 0,
-            channel_id: 0,
-            ..Default::default()
-        };
+        let expected_server_id = 0;
+        let expected_channel_id = 0;
+        repo.add_guild_if_not_exists(expected_server_id, expected_channel_id)
+            .await?;
 
-        repo.add_guild(expected.server_id, expected.channel_id).await?;
+        let actual_coll = db.discord().collect().await?;
+        assert_eq!(
+            1,
+            actual_coll.len(),
+            "Collection has more than one record: {actual_coll:?}"
+        );
 
-        let actual = db.discord().collect().await?;
-        assert_eq!([expected], actual[..]);
+        let actual = &actual_coll[0];
+        assert_eq!(expected_server_id, actual.server_id);
+        assert_eq!(expected_channel_id, actual.channel_id);
 
         Ok(())
     }
 
     #[tokio::test]
     #[serial_test::serial(database)]
-    async fn add_guild_does_nothing_if_inserting_duplicate_variants() -> Result<()> {
+    async fn add_guild_if_not_exists_does_nothing_if_inserting_duplicate_variants() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = DiscordRepo::new(&db);
 
-        let expected = Discord {
-            server_id: 0,
-            channel_id: 0,
-            ..Default::default()
-        };
-        repo.add_guild(expected.server_id, expected.channel_id)
+        let expected_server_id = 0;
+        let expected_channel_id = 0;
+        repo.add_guild_if_not_exists(expected_server_id, expected_channel_id)
             .await?;
 
-        // Duplicate variant
-        let duplicate = expected.clone();
-        repo.add_guild(duplicate.server_id, duplicate.channel_id)
+        // Duplicate
+        repo.add_guild_if_not_exists(expected_server_id, expected_channel_id)
             .await?;
 
-        // Another duplicate variant
-        let mut modified = expected.clone();
-        modified.channel_id = 2;
-        repo.add_guild(modified.server_id, modified.channel_id)
+        // Duplicate with modification
+        repo.add_guild_if_not_exists(expected_server_id, expected_channel_id + 1)
             .await?;
 
-        let actual = db.discord().collect().await?;
-        assert_eq!([expected], actual[..]);
+        let actual_coll = db.discord().collect().await?;
+        assert_eq!(
+            1,
+            actual_coll.len(),
+            "Collection has more than one record: {actual_coll:?}"
+        );
+
+        let actual = &actual_coll[0];
+        assert_eq!(expected_server_id, actual.server_id);
+        assert_eq!(expected_channel_id, actual.channel_id);
 
         Ok(())
     }

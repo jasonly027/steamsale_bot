@@ -17,9 +17,17 @@ impl AppsRepo {
 
     /// Inserts the app if it's not present in the collection. Otherwise,
     /// replaces it in the collection (as a way to update the app name).
-    pub fn upsert_app(&self, app: &models::App) -> mongodb::action::ReplaceOne<'_> {
+    pub fn upsert_app(&self, app: &models::App) -> mongodb::action::Update<'_> {
         let query = bson::doc! { "app_id": app.app_id };
-        self.coll.replace_one(query, app).upsert(true)
+        let mut adoc = bson::to_document(app).expect("app should be serializable");
+        adoc.remove("_id");
+        let update = bson::doc! {
+            "$set": adoc,
+            "$setOnInsert": {
+                "_id": app.id,
+            }
+        };
+        self.coll.update_one(query, update).upsert(true)
     }
 
     pub async fn remove_orphans(&self) -> mongodb::error::Result<()> {

@@ -23,7 +23,7 @@ impl serenity::EventHandler for GuildAvailable {
         let data = ctx.poise_data_unwrap().await;
         data.repo
             .discord
-            .add_guild(guild_id, channel_id)
+            .add_guild_if_not_exists(guild_id, channel_id)
             .await
             .inspect_err(|err| error!(?err, "Failed to add new guild"))
             .ok();

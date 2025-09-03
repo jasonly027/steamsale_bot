@@ -119,8 +119,17 @@ async fn check_apps(ctx: &framework::Data) -> Result<()> {
             .for_each_concurrent(None, |junction| async {
                 match junction {
                     Ok(j) => {
+                        let guild_id = j.server_id;
+                        let app_id = j.app_id;
+
                         if let Err(err) = notify_guild(ctx, j, &discord_cache, &app).await {
                             error!(?err, "Failed to notify guild");
+                            return;
+                        }
+                        if app.is_free && !app.release_date.coming_soon {
+                            if let Err(err) = junc_repo.remove_junction(guild_id, app_id).await {
+                                error!(?err, "Failed to remove free and released app");
+                            }
                         }
                     }
                     Err(err) => error!(?err, "Failed to get junction"),
@@ -142,6 +151,7 @@ async fn get_app(
 
     let mut app_res = steam.app_details(app_id).await;
     while matches!(&app_res, Err(err) if err.is_rate_limited()) {
+        info!("Steam rate-limit hit. Temporarily backing off...");
         tokio::time::sleep(Duration::from_secs(RETRY_TIMEOUT)).await;
         app_res = steam.app_details(app_id).await;
 
@@ -165,9 +175,11 @@ async fn notify_guild(
     let channel = serenity::ChannelId::new(discord.channel_id.try_into()?);
 
     if junction.coming_soon && !app.release_date.coming_soon {
-        let embed = released_embed(app);
         channel
-            .send_message(&ctx.http, serenity::CreateMessage::new().embed(embed))
+            .send_message(
+                &ctx.http,
+                serenity::CreateMessage::new().embed(released_embed(app)),
+            )
             .await?;
     }
 
@@ -178,9 +190,11 @@ async fn notify_guild(
         .is_some_and(|p| p.discount_percent >= threshold);
 
     if is_significant_discount && !junction.is_trailing_sale_day {
-        let embed = sale_embed(app);
         channel
-            .send_message(&ctx.http, serenity::CreateMessage::new().embed(embed))
+            .send_message(
+                &ctx.http,
+                serenity::CreateMessage::new().embed(sale_embed(app)),
+            )
             .await?;
     }
 
