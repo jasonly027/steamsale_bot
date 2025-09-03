@@ -5,6 +5,10 @@ edition = "2024"
 description = "A Discord bot to track Steam sales and discounts"
 repository = "https://github.com/jasonly027/steamsale_bot"
 
+[[bin]]
+name = "steamsale_bot"
+path = "src/main.rs"
+
 [dependencies]
 anyhow = "1.0.99"
 chrono = "0.4.41"

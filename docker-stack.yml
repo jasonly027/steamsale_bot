@@ -1,0 +1,17 @@
+services:
+  app:
+    image: jasonly027/steamsale_bot
+    environment:
+      - RUST_LOG=info,serenity=warn
+      - DISCORD_TOKEN_FILE=/run/secrets/steamsale_bot_discord_token
+      - MONGODB_URI_FILE=/run/secrets/steamsale_bot_mongodb_uri
+      - MONGODB_DBNAME=PROD_RUST
+    secrets:
+      - steamsale_bot_discord_token
+      - steamsale_bot_mongodb_uri
+
+secrets:
+  steamsale_bot_discord_token:
+    external: true
+  steamsale_bot_mongodb_uri:
+    external: true

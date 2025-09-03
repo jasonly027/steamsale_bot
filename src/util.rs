@@ -16,16 +16,16 @@ pub trait ResLog<T, E> {
 impl<T, E: std::fmt::Debug> ResLog<T, E> for StdResult<T, E> {
     #[track_caller]
     fn twarn(self) -> StdResult<T, E> {
+        let loc = std::panic::Location::caller();
         self.inspect_err(|err| {
-            let loc = std::panic::Location::caller();
             warn!(?err, "Error at {}", loc_as_str(loc));
         })
     }
 
     #[track_caller]
     fn terror(self) -> StdResult<T, E> {
+        let loc = std::panic::Location::caller();
         self.inspect_err(|err| {
-            let loc = std::panic::Location::caller();
             error!(?err, "Error at {}", loc_as_str(loc));
         })
     }
@@ -61,15 +61,23 @@ where
             key: key.to_string(),
             err: err.to_string(),
         }),
-        Err(_) => std::env::var(format!("{key}_FILE"))
-            .map_err(|_| EnvVarError::InvalidOrMissingKey {
-                key: key.to_string(),
-            })?
-            .parse()
-            .map_err(|err: T::Err| EnvVarError::InvalidValue {
-                key: format!("{key}_FILE"),
-                err: err.to_string(),
-            }),
+        Err(_) => {
+            let file_path = std::env::var(format!("{key}_FILE")).map_err(|_| {
+                EnvVarError::InvalidOrMissingKey {
+                    key: key.to_string(),
+                }
+            })?;
+
+            std::fs::read_to_string(&file_path)
+                .map_err(|_| EnvVarError::InvalidOrMissingKey {
+                    key: format!("{key}_FILE"),
+                })?
+                .parse()
+                .map_err(|err: T::Err| EnvVarError::InvalidValue {
+                    key: format!("{key}_FILE"),
+                    err: err.to_string(),
+                })
+        }
     }
 }
 
