@@ -36,7 +36,7 @@ pub async fn help(ctx: Context<'_>) -> Result<()> {
                     "Remove all apps from the tracker.",
                     false)
                 .field("How often does the bot check for sales?",
-                    "The bot begins checking at 10:00AM PDT daily.",
+                    "The bot begins checking at 17:00 UTC daily.",
                     true)
                 .field("Why aren't alerts showing up?", 
                     "Please try reconfiguring discount thresholds or the bound text channel.",

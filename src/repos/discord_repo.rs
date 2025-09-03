@@ -28,7 +28,7 @@ impl DiscordRepo {
         self.coll.update_one(query, update)
     }
 
-    pub fn find_one_by_guild_id(
+    pub fn get_guild(
         &self,
         guild_id: i64,
     ) -> mongodb::action::FindOne<'_, models::Discord> {
@@ -122,14 +122,14 @@ mod tests {
     #[tokio::test]
     #[serial_test::serial(database)]
     #[rustfmt::skip]
-    async fn find_one_by_guild_id_gets_correct_guild() -> Result<()> {
+    async fn get_guild_gets_correct_guild() -> Result<()> {
         let db = TestDatabase::new().await?;
         let repo = DiscordRepo::new(&db);
 
         let expected = Discord { server_id: 0, ..Default::default() };
         db.discord().insert_one(&expected).await?;
 
-        let actual = repo.find_one_by_guild_id(expected.server_id).await?;
+        let actual = repo.get_guild(expected.server_id).await?;
         assert_eq!(Some(expected), actual);
 
         Ok(())

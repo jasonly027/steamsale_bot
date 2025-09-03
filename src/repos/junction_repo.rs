@@ -65,7 +65,7 @@ impl JunctionRepo {
         &self,
         guild_id: i64,
     ) -> mongodb::error::Result<Vec<models::AppListing>> {
-        let pipeline = vec![
+        let pipeline = [
             bson::doc! { "$match": { "server_id": guild_id } },
             bson::doc! {
                 "$lookup": {
@@ -119,6 +119,18 @@ impl JunctionRepo {
 
         self.coll.update_one(query, update).upsert(true)
     }
+
+    pub fn get_junctions(&self, app_id: i32) -> mongodb::action::Find<'_, models::Junction> {
+        let filter = bson::doc! { "app_id": app_id };
+        self.coll.find(filter)
+    }
+
+    pub fn update_junction(&self, junction: &models::Junction) -> mongodb::action::Update<'_> {
+        let query = bson::doc! { "_id": junction.id };
+        let jdoc = bson::to_document(junction).expect("junction should be serializable");
+        let update = bson::doc! { "$set": jdoc };
+        self.coll.update_one(query, update)
+    }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -150,6 +162,7 @@ impl TryInto<models::AppListing> for AppListingAggregate {
 
 #[cfg(test)]
 mod tests {
+    use futures::TryStreamExt;
     use pretty_assertions::assert_eq;
 
     use crate::{
@@ -353,6 +366,46 @@ mod tests {
 
         let actual = db.junction().collect().await?;
         assert_eq!([expected], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn get_junctions_only_finds_relevant_junctions() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let expected = Junction { app_id: 0, ..Default::default() };
+        let other = Junction { app_id: 1, ..Default::default() };
+        db.junction().insert_many([&expected, &other]).await?;
+
+        let actual = repo.get_junctions(expected.app_id).await?.try_collect::<Vec<_>>().await?;
+        assert_eq!([expected], actual[..]);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial_test::serial(database)]
+    #[rustfmt::skip]
+    async fn update_junction_only_updates_target() -> Result<()> {
+        let db = TestDatabase::new().await?;
+        let repo = JunctionRepo::new(&db);
+
+        let target = Junction { coming_soon: false, is_trailing_sale_day: false, ..Default::default() };
+        let other = Junction::default();
+        db.junction().insert_many([&target, &other]).await?;
+        // Fetch is needed so they have correct _id
+        let mut expected = db.junction().collect().await?;
+
+        expected[0].coming_soon = true;
+        expected[0].is_trailing_sale_day = true;
+        repo.update_junction(&expected[0]).await?;
+
+        let actual = db.junction().collect().await?;
+        assert_eq!(expected, actual);
 
         Ok(())
     }

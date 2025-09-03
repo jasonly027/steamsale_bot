@@ -17,6 +17,12 @@ pub enum FetchError {
     JsonDeserialize(#[from] serde_json::Error),
 }
 
+impl FetchError {
+    pub fn is_rate_limited(&self) -> bool {
+        matches!(self, FetchError::Http(error) if error.status() == Some(reqwest::StatusCode::TOO_MANY_REQUESTS))
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct App {
     pub name: String,

@@ -7,10 +7,12 @@ repository = "https://github.com/jasonly027/steamsale_bot"
 
 [dependencies]
 anyhow = "1.0.99"
+chrono = "0.4.41"
 derivative = "2.2.0"
 dotenvy = "0.15.7"
 futures = "0.3.31"
 mongodb = "3.2.5"
+once_map = "0.4.22"
 poise = "0.6.1"
 reqwest = { version = "0.12.23", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }

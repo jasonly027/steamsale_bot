@@ -45,7 +45,7 @@ async fn get_app_listings(
 async fn get_guild_sale_threshold(ctx: &framework::Context<'_>, guild_id: i64) -> Result<i32> {
     let repo = &ctx.data().repo.discord;
     let models::Discord { sale_threshold, .. } = repo
-        .find_one_by_guild_id(guild_id)
+        .get_guild(guild_id)
         .await?
         .with_context(|| anyhow::anyhow!("Missing Discord record for guild_id={guild_id}"))?;
 
