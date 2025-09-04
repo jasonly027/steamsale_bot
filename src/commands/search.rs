@@ -128,13 +128,23 @@ async fn get_app(
 ) -> Result<Option<steam::App>> {
     let steam = &ctx.data().steam;
 
-    let Some(app) = steam.app_details(app_id).await? else {
-        let edit = create_edit(
-            "Couldn't get more details on the app. \
-It may not be available in the US.",
-        );
-        event.edit_response(&ctx, edit).await?;
-        return Ok(None);
+    let app = match steam.app_details(app_id).await {
+        Ok(Some(app)) => app,
+        Ok(None) => {
+            let edit = create_edit(
+                "Couldn't get more details on the app. It may not be available in the US.",
+            );
+            event.edit_response(&ctx, edit).await?;
+            return Ok(None);
+        }
+        Err(err) if err.is_rate_limited() => {
+            let edit = create_edit(
+                "Bot was rate-limited by Steam. Please wait a few minutes before trying again!",
+            );
+            event.edit_response(&ctx, edit).await?;
+            return Ok(None);
+        }
+        Err(err) => Err(err)?,
     };
     if app.is_free && !app.release_date.coming_soon {
         let edit = create_edit("Invalid app. App is neither priced or yet to be released.");
