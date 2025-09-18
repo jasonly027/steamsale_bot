@@ -4,6 +4,7 @@ use anyhow::Context;
 use futures::StreamExt;
 use once_map::OnceMap;
 use poise::serenity_prelude as serenity;
+use tokio::sync::OnceCell;
 use tracing::{error, info, warn};
 
 use crate::{
@@ -13,14 +14,20 @@ use crate::{
     util::{self, PoiseData},
 };
 
+static INIT: OnceCell<()> = OnceCell::const_new();
+
 pub struct SerenityReady;
 
 #[serenity::async_trait]
 impl serenity::EventHandler for SerenityReady {
     /// Initialize framework data and start check apps loop.
     async fn ready(&self, ctx: serenity::Context, _ready: serenity::Ready) {
-        init_data(&ctx).await;
-        init_check_apps(ctx.poise_data_unwrap().await);
+        info!("Received SerenityReady");
+        INIT.get_or_init(|| async {
+            init_data(&ctx).await;
+            init_check_apps(ctx.poise_data_unwrap().await);
+        })
+        .await;
     }
 }
 
